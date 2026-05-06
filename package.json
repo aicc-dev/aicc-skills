@@ -1,0 +1,19 @@
+{
+  "name": "aicc-skills",
+  "version": "0.1.0",
+  "description": "Install the AICC Codex skill with npx.",
+  "bin": {
+    "aicc-skills": "./bin/aicc-skills.js"
+  },
+  "files": [
+    "bin/",
+    "skills/"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "UNLICENSED"
+}

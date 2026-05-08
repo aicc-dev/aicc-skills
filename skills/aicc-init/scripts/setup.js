@@ -56,10 +56,36 @@ function getBaseUrl() {
   return defaultBaseUrl;
 }
 
-function getDestination(assetName) {
-  const binDir = process.env.AICC_BIN_DIR || path.join(os.homedir(), ".aicc", "bin");
+function getBinDir() {
+  return process.env.AICC_BIN_DIR || path.join(os.homedir(), ".aicc", "bin");
+}
+
+function getDestination(assetName, binDir) {
   const executableName = assetName.endsWith(".exe") ? "aicc.exe" : "aicc";
   return path.join(binDir, executableName);
+}
+
+function getAiccHome() {
+  return process.env.AICC_HOME || path.join(os.homedir(), ".aicc");
+}
+
+function getConfigPath(aiccHome) {
+  return process.env.AICC_CONFIG_PATH || path.join(aiccHome, "config.json");
+}
+
+function writeConfig(configPath, executablePath) {
+  fs.mkdirSync(path.dirname(configPath), { recursive: true });
+  fs.writeFileSync(
+    configPath,
+    `${JSON.stringify(
+      {
+        executablePath,
+        executableFound: true
+      },
+      null,
+      2
+    )}\n`
+  );
 }
 
 function download(url, destination) {
@@ -105,7 +131,10 @@ async function main() {
   const target = resolveTarget();
   const assetName = getAssetName(target);
   const url = `${getBaseUrl()}/${assetName}`;
-  const destination = getDestination(assetName);
+  const aiccHome = getAiccHome();
+  const binDir = process.env.AICC_BIN_DIR || path.join(aiccHome, "bin");
+  const destination = getDestination(assetName, binDir);
+  const configPath = getConfigPath(aiccHome);
 
   if (process.env.AICC_SETUP_DRY_RUN === "1") {
     console.log(`platform: ${target.platform}`);
@@ -113,11 +142,15 @@ async function main() {
     console.log(`asset: ${assetName}`);
     console.log(`url: ${url}`);
     console.log(`destination: ${destination}`);
+    console.log(`config path: ${configPath}`);
     return;
   }
 
   await download(url, destination);
+  writeConfig(configPath, destination);
   console.log(`Installed AICC executable: ${destination}`);
+  console.log(`Wrote AICC config: ${configPath}`);
+  console.log(`Use executablePath from ${configPath} when invoking AICC from agents.`);
 }
 
 main().catch((error) => {

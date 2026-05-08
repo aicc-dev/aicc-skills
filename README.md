@@ -23,6 +23,15 @@ npx skills add . -a codex -g -y
 
 ## Contents
 
+Public skill names:
+
+```text
+aicc:init
+aicc:task
+```
+
+Repository paths:
+
 ```text
 skills/aicc-skills/SKILL.md
 skills/aicc-skills/agents/openai.yaml
@@ -30,13 +39,15 @@ skills/aicc-init/SKILL.md
 skills/aicc-init/scripts/setup.js
 skills/aicc-init/scripts/setup.sh
 skills/aicc-init/scripts/setup.ps1
+skills/aicc-init/scripts/token-mock.js
 ```
 
 ## Initialize AICC Executable
 
-After installing the skills, ask the agent to use `aicc-init` to initialize AICC.
+After installing the skills, ask the agent to use `aicc:init` to initialize AICC.
 
-The init skill downloads the executable that matches the current OS and CPU from AICC OSS and installs it into `~/.aicc/bin`.
+The init skill downloads the executable that matches the current OS and CPU from AICC OSS, installs it into `~/.aicc/bin`, and writes `~/.aicc/config.json`.
+Agents should invoke AICC through the `executablePath` value in that config instead of relying on PATH.
 
 If Node.js is available, run from the `skills/aicc-init` directory:
 
@@ -73,6 +84,32 @@ https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/static/aicc-cli/latest/<asset>
 ```
 
 Set `AICC_DOWNLOAD_BASE_URL` to point at a different OSS directory.
+
+## Mock Local Token Config
+
+`aicc:init` also includes a token config mock. It checks whether the local `aicc` executable exists, then writes token config JSON to `~/.aicc/config.json`.
+
+Run from the `skills/aicc-init` directory:
+
+```bash
+node scripts/token-mock.js --token mock-token
+```
+
+Or provide the token via environment:
+
+```bash
+AICC_TOKEN=mock-token node scripts/token-mock.js
+```
+
+The mock JSON shape is:
+
+```json
+{
+  "token": "mock-token",
+  "executablePath": "/Users/example/.aicc/bin/aicc",
+  "executableFound": true
+}
+```
 
 ## Build AICC Binaries
 

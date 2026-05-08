@@ -39,24 +39,71 @@ test("package.json is not an npm CLI installer", () => {
   assert.ok(!fs.existsSync(path.join(repoRoot, "bin", "aicc-skills.js")));
 });
 
-test("aicc-skills is discoverable as a skills CLI package", () => {
+test("aicc task skill uses a namespaced public name", () => {
   const skillMarkdown = readText("skills/aicc-skills/SKILL.md");
   const metadata = parseFrontmatter(skillMarkdown);
+  const openaiAgentConfig = readText("skills/aicc-skills/agents/openai.yaml");
 
-  assert.equal(metadata.name, "aicc-skills");
+  assert.equal(metadata.name, "aicc:task");
   assert.ok(metadata.description);
+  assert.match(openaiAgentConfig, /\$aicc:task/);
+  assert.doesNotMatch(openaiAgentConfig, /\$aicc-skills/);
 });
 
-test("aicc-init skill provides cross-platform setup scripts", () => {
+test("aicc init skill uses a namespaced public name and provides setup scripts", () => {
   const skillMarkdown = readText("skills/aicc-init/SKILL.md");
   const metadata = parseFrontmatter(skillMarkdown);
 
-  assert.equal(metadata.name, "aicc-init");
+  assert.equal(metadata.name, "aicc:init");
   assert.match(metadata.description, /initialize/i);
 
   assert.ok(fs.existsSync(path.join(repoRoot, "skills/aicc-init/scripts/setup.js")));
   assert.ok(fs.existsSync(path.join(repoRoot, "skills/aicc-init/scripts/setup.sh")));
   assert.ok(fs.existsSync(path.join(repoRoot, "skills/aicc-init/scripts/setup.ps1")));
+  assert.ok(fs.existsSync(path.join(repoRoot, "skills/aicc-init/scripts/token-mock.js")));
+});
+
+test("token mock writes local config and reports executable state", () => {
+  const home = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "aicc-token-"));
+  const binDir = path.join(home, ".aicc", "bin");
+  fs.mkdirSync(binDir, { recursive: true });
+  const executable = path.join(binDir, "aicc");
+  fs.writeFileSync(executable, "#!/bin/sh\n");
+  fs.chmodSync(executable, 0o755);
+
+  const output = execFileSync(process.execPath, ["skills/aicc-init/scripts/token-mock.js", "--token", "mock-token"], {
+    cwd: repoRoot,
+    env: { ...process.env, HOME: home },
+    encoding: "utf8"
+  });
+
+  assert.match(output, /aicc executable: found/);
+  assert.match(output, /token: mock-token/);
+
+  const config = JSON.parse(fs.readFileSync(path.join(home, ".aicc", "config.json"), "utf8"));
+  assert.deepEqual(config, {
+    token: "mock-token",
+    executablePath: executable,
+    executableFound: true
+  });
+});
+
+test("token mock can write config when executable is missing", () => {
+  const home = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "aicc-token-missing-"));
+
+  const output = execFileSync(process.execPath, ["skills/aicc-init/scripts/token-mock.js"], {
+    cwd: repoRoot,
+    env: { ...process.env, HOME: home, AICC_TOKEN: "env-token" },
+    encoding: "utf8"
+  });
+
+  assert.match(output, /aicc executable: missing/);
+  assert.match(output, /token: env-token/);
+
+  const config = JSON.parse(fs.readFileSync(path.join(home, ".aicc", "config.json"), "utf8"));
+  assert.equal(config.token, "env-token");
+  assert.equal(config.executableFound, false);
+  assert.match(config.executablePath, /\.aicc.*bin.*aicc/);
 });
 
 test("node setup script maps platform and architecture without downloading in dry-run mode", () => {
@@ -74,6 +121,7 @@ test("node setup script maps platform and architecture without downloading in dr
   assert.match(output, /asset: aicc-darwin-arm64/);
   assert.match(output, /url: https:\/\/oss-telrobot\.oss-cn-hangzhou\.aliyuncs\.com\/static\/aicc-cli\/latest\/aicc-darwin-arm64/);
   assert.match(output, /destination: .*\.aicc.*bin.*aicc/);
+  assert.match(output, /config path: .*\.aicc.*config\.json/);
 });
 
 test("shell setup script supports macOS and Linux dry-run initialization", () => {
@@ -95,6 +143,7 @@ test("shell setup script supports macOS and Linux dry-run initialization", () =>
 
   assert.match(output, /asset: aicc-linux-x64/);
   assert.match(output, /url: https:\/\/oss-telrobot\.oss-cn-hangzhou\.aliyuncs\.com\/static\/aicc-cli\/latest\/aicc-linux-x64/);
+  assert.match(output, /config path: .*\.aicc.*config\.json/);
 });
 
 test("powershell setup script includes Windows asset mapping", () => {
@@ -104,6 +153,50 @@ test("powershell setup script includes Windows asset mapping", () => {
   assert.match(script, /oss-telrobot\.oss-cn-hangzhou\.aliyuncs\.com/);
   assert.match(script, /PROCESSOR_ARCHITECTURE/);
   assert.match(script, /Invoke-WebRequest/);
+  assert.match(script, /config\.json/);
+  assert.doesNotMatch(script, /SetEnvironmentVariable/);
+});
+
+test("shell setup script writes executable config without modifying shell profiles", () => {
+  const home = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "aicc-config-"));
+  const fakeCurl = path.join(home, "curl");
+  fs.writeFileSync(
+    fakeCurl,
+    [
+      "#!/bin/sh",
+      "while [ $# -gt 0 ]; do",
+      "  if [ \"$1\" = \"-o\" ]; then",
+      "    shift",
+      "    printf '#!/bin/sh\\n' > \"$1\"",
+      "    exit 0",
+      "  fi",
+      "  shift",
+      "done",
+      "exit 1",
+      ""
+    ].join("\n")
+  );
+  fs.chmodSync(fakeCurl, 0o755);
+
+  const env = {
+    ...process.env,
+    HOME: home,
+    PATH: `${home}:${process.env.PATH}`,
+    SHELL: "/bin/zsh",
+    AICC_TEST_UNAME_S: "Darwin",
+    AICC_TEST_UNAME_M: "arm64"
+  };
+
+  execFileSync("sh", ["skills/aicc-init/scripts/setup.sh"], {
+    cwd: repoRoot,
+    env,
+    encoding: "utf8"
+  });
+
+  const config = JSON.parse(fs.readFileSync(path.join(home, ".aicc", "config.json"), "utf8"));
+  assert.equal(config.executablePath, path.join(home, ".aicc", "bin", "aicc"));
+  assert.equal(config.executableFound, true);
+  assert.ok(!fs.existsSync(path.join(home, ".zshrc")));
 });
 
 test("go sample CLI and build script are present", () => {
@@ -143,10 +236,14 @@ test("README documents npx skills add as the only install path", () => {
   assert.match(readme, /npx skills add <github-owner>\/<repo> -a claude-code -g -y/);
   assert.match(readme, /npx skills add <github-owner>\/<repo> -a codebuddy -g -y/);
   assert.match(readme, /For WorkBuddy, use the `skills` CLI agent id `codebuddy`/);
-  assert.match(readme, /aicc-init/);
+  assert.match(readme, /aicc:init/);
+  assert.match(readme, /aicc:task/);
+  assert.match(readme, /token-mock\.js/);
   assert.match(readme, /sh scripts\/setup\.sh/);
   assert.match(readme, /setup\.ps1/);
   assert.match(readme, /https:\/\/oss-telrobot\.oss-cn-hangzhou\.aliyuncs\.com\/static\/aicc-cli\/latest\/<asset>/);
   assert.match(readme, /scripts\/build-aicc\.sh/);
+  assert.match(readme, /executablePath/);
+  assert.doesNotMatch(readme, /AICC_UPDATE_PATH/);
   assert.doesNotMatch(readme, /npx aicc-skills/);
 });

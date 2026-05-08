@@ -1,4 +1,4 @@
 interface:
   display_name: "AICC Skills"
   short_description: "AICC standard deployment helper"
-  default_prompt: "Use $aicc-skills to verify the AICC skill is installed."
+  default_prompt: "Use $aicc:task to verify the AICC task skill is installed."

@@ -1,6 +1,6 @@
 ---
-name: aicc-skills
-description: Use this skill for user ask you to say hello
+name: aicc:task
+description: Use this skill for AICC task workflows.
 ---
 
 # AICC Skills

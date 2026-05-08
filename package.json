@@ -1,12 +1,9 @@
 {
   "name": "aicc-skills",
   "version": "0.1.0",
-  "description": "Install the AICC Codex skill with npx.",
-  "bin": {
-    "aicc-skills": "./bin/aicc-skills.js"
-  },
+  "description": "AICC agent skill package for installation with npx skills add.",
+  "private": true,
   "files": [
-    "bin/",
     "skills/"
   ],
   "scripts": {

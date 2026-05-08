@@ -235,7 +235,7 @@ test("README documents npx skills add as the only install path", () => {
   assert.match(readme, /npx skills add <github-owner>\/<repo> -a codex -g -y/);
   assert.match(readme, /npx skills add <github-owner>\/<repo> -a claude-code -g -y/);
   assert.match(readme, /npx skills add <github-owner>\/<repo> -a codebuddy -g -y/);
-  assert.match(readme, /For WorkBuddy, use the `skills` CLI agent id `codebuddy`/);
+  assert.match(readme, /WorkBuddy 当前使用 `skills` CLI 的 Agent id `codebuddy`/);
   assert.match(readme, /aicc:init/);
   assert.match(readme, /aicc:task/);
   assert.match(readme, /token-mock\.js/);

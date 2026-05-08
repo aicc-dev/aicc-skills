@@ -7,7 +7,7 @@
     "skills/"
   ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test && go test ./..."
   },
   "engines": {
     "node": ">=18"

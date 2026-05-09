@@ -1,7 +1,7 @@
 {
-  "name": "aicc-skills",
-  "version": "0.1.0",
-  "description": "AICC agent skill package for installation with npx skills add.",
+  "name": "telrobot-skills",
+  "version": "1.0.0",
+  "description": "Telrobot agent skill package for installation with npx skills add.",
   "private": true,
   "files": [
     "skills/"

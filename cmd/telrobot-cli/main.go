@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-var version = "dev"
+var version = "1.0.0"
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version")
@@ -17,7 +17,7 @@ func main() {
 		return
 	}
 
-	fmt.Println("name: aicc")
+	fmt.Println("name: telrobot-cli")
 	fmt.Printf("version: %s\n", version)
 	fmt.Printf("goos: %s\n", runtime.GOOS)
 	fmt.Printf("goarch: %s\n", runtime.GOARCH)

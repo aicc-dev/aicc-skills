@@ -5,11 +5,12 @@ const os = require("node:os");
 const path = require("node:path");
 
 function getTelrobotHome() {
-  return process.env.TELROBOT_HOME || path.join(os.homedir(), ".telrobot");
+  return process.env.TELROBOT_HOME || path.join(os.homedir(), ".telrobot-cli");
 }
 
 function getConfigPath(telrobotHome) {
-  return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.json");
+  // CLI 实际读取的配置文件路径：~/.telrobot-cli/config.yaml
+  return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.yaml");
 }
 
 function getExecutablePath() {
@@ -19,29 +20,21 @@ function getExecutablePath() {
 }
 
 function updateConfig(configPath, executablePath, token) {
-  let config = {};
+  // 写入 YAML 格式配置（CLI 实际读取的格式）
+  const configLines = [
+    'server:',
+    '  baseURL: http://localhost:8001',
+    '  apiVersion: v1',
+    'auth:',
+    `  token: ${token}`,
+    'output:',
+    '  format: table',
+  ];
 
-  // Read existing config if it exists
-  if (fs.existsSync(configPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    } catch (error) {
-      console.warn(`Warning: Could not parse existing config, creating new one`);
-    }
-  }
-
-  // Update or add fields
-  config.executablePath = executablePath;
-  config.executableFound = fs.existsSync(executablePath);
-  config.token = token;
-  config.apiUrl = config.apiUrl || "http://localhost:8001";
-  config.version = config.version || "1.0.0";
-
-  // Write updated config
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`);
+  fs.writeFileSync(configPath, configLines.join('\n') + '\n');
 
-  return config;
+  return { token, configPath };
 }
 
 function main() {
@@ -70,10 +63,8 @@ function main() {
   const config = updateConfig(configPath, executablePath, token);
 
   console.log("✅ Token configuration updated successfully");
-  console.log(`📝 Config file: ${configPath}`);
-  console.log(`🔑 Token: ${token.substring(0, 8)}...`);
-  console.log(`📂 Executable: ${config.executablePath}`);
-  console.log(`🌐 API URL: ${config.apiUrl}`);
+  console.log(`📝 Config file: ${config.configPath}`);
+  console.log(`🔑 Token: ${config.token.substring(0, 8)}...`);
 }
 
 main();

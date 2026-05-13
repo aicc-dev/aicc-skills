@@ -7,7 +7,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 //后续根据实际上传地址修改
-const defaultBaseUrl = "https://releases.telrobot.com/latest";
+const defaultBaseUrl = "https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest";
 
 function normalizePlatform(value) {
   switch (value) {
@@ -61,7 +61,7 @@ function getBaseUrl() {
 }
 
 function getTelrobotHome() {
-  return process.env.TELROBOT_HOME || path.join(os.homedir(), ".telrobot");
+  return process.env.TELROBOT_HOME || path.join(os.homedir(), ".telrobot-cli");
 }
 
 function getBinDir(telrobotHome) {
@@ -74,28 +74,25 @@ function getDestination(assetName, binDir) {
 }
 
 function getConfigPath(telrobotHome) {
-  return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.json");
+  // CLI 实际读取的配置文件路径：~/.telrobot-cli/config.yaml
+  return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.yaml");
 }
 
 function writeConfig(configPath, executablePath, apiUrl, token) {
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
-  const config = {
-    executablePath,
-    executableFound: true,
-    //后续修改成实际的发布服务器地址
-    apiUrl: apiUrl || "http://localhost:8001",
-    version: "1.0.0"
-  };
+  // 写入 YAML 格式配置（CLI 实际读取的格式）
+  const configLines = [
+    'server:',
+    `  baseURL: ${apiUrl || 'http://localhost:8001'}`,
+    '  apiVersion: v1',
+    'auth:',
+    `  token: ${token || ''}`,
+    'output:',
+    '  format: table',
+  ];
 
-  if (token) {
-    config.token = token;
-  }
-
-  fs.writeFileSync(
-    configPath,
-    `${JSON.stringify(config, null, 2)}\n`
-  );
+  fs.writeFileSync(configPath, configLines.join('\n') + '\n');
 }
 
 function download(url, destination) {

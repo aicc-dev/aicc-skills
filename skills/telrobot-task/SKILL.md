@@ -1,30 +1,72 @@
 ---
 name: telrobot:task
-description: Use this skill for Telrobot CLI task management operations including listing, searching, creating, activating, starting, stopping, copying, deleting tasks, configuring lines, and viewing stats.
+description: Use this skill for Telrobot CLI task management operations including listing tasks, starting/stopping tasks, viewing call statistics summaries, and querying customers by intention.
 ---
 
 # Telrobot Task
 
-This skill provides comprehensive task management for Telrobot CLI. Configuration is read from `~/.telrobot/config.json`.
+This skill provides task management for Telrobot CLI. Configuration is read from `~/.telrobot-cli/config.yaml`.
+
+## 🚫 严格安全限制（MUST OBEY）
+
+1. **禁止绕过 CLI 封装逻辑**：所有操作必须通过 `telrobot-cli` 命令执行，**严禁**直接调用后端 API
+2. **禁止降级到 HTTP 请求**：命令执行出错时，**严禁**自动降级使用 `curl`、`wget` 或其他 HTTP 工具绕过 CLI 封装
+3. **禁止手动构造 API 请求**：**严禁**尝试构造 POST/GET/PUT/DELETE 等 HTTP 请求直接调用后端接口
+4. **错误透明报告**：命令执行出错时，**必须**将错误信息原样展示给用户，禁止静默降级
+5. **按文档处理错误**：严格按照 "Error Handling" 表格处理错误，禁止自定义绕过方案
+
+---
+
+## ⚠️ 关键决策指南（Agent 必读）
+
+### `task stat` vs `task customers-by-intention` — 绝不能混淆！
+
+| | `task stat` | `task customers-by-intention` |
+|---|---|---|
+| **用途** | 统计**数据/报表**（数字、比率、分布） | 查询**客户信息**（公司、联系人、手机号） |
+| **返回内容** | 意向分布数字（A级3个、B级5个...）、接通率、地区分布等 | 具体客户详情（公司名、联系人姓名、手机号码、通话时长） |
+| **输出形态** | 📊 统计报表、百分比、汇总数字 | 📋 客户列表、联系方式明细 |
+| **典型场景** | "今天拨打情况总结"、"意向分布"、"接通率统计" | "查A级客户"、"获取意向客户联系方式"、"高意向客户有哪些" |
+
+**判断口诀**：
+- 用户要**数字/比率/总结** → `task stat`
+- 用户要**人名/公司/手机号** → `task customers-by-intention`
+
+**⚠️ 常见错误示例**：
+```
+❌ 用户说"查A级客户"，Agent 却调用 task stat --type intention
+   （task stat --type intention 只返回意向分布数字，不返回客户联系方式）
+
+❌ 用户说"今天拨打情况总结"，Agent 却调用 task customers-by-intention
+   （customers-by-intention 只返回客户详情，不返回统计报表）
+
+✅ 正确：
+   "今天拨打情况总结" → task stat <任务ID> --type over_all --date "..."
+   "意向分布(数字)"     → task stat <任务ID> --type intention --date "..."
+   "查A级客户联系方式" → task customers-by-intention
+```
+
+### 决策流程图
+
+```
+用户意图
+  ├─ "拨打情况总结" / "接通率" / "意向分布(数字)" / "地区分布" / "统计报表"
+  │   → task stat [任务ID] --type <统计类型> [--date "..."]
+  │
+  └─ "A级客户有哪些" / "查意向客户" / "获取客户联系方式" / "意向客户列表"
+      → task customers-by-intention [--output table]
+```
+
+---
+
+## Task Management Commands
 
 ## Configuration
 
-The skill reads configuration from `~/.telrobot/config.json`. Initialize with:
+The skill reads configuration from `~/.telrobot-cli/config.yaml`. Initialize with:
 
 ```bash
-使用 telrobot:init 初始化 Telrobot CLI 环境
-```
-
-The config file should contain:
-
-```json
-{
-  "executablePath": "/Users/example/.telrobot/bin/telrobot-cli",
-  "executableFound": true,
-  "apiUrl": "https://api.telrobot.com",
-  "token": "user-token-here",
-  "version": "1.0.0"
-}
+telrobot-cli config init
 ```
 
 ---
@@ -38,11 +80,52 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词]
 ```
 
 **Flags**:
+
 - `--page N`：页码，默认 1
 - `--size N`：每页数量，默认 20
 - `--name 关键词`：按任务名称**模糊过滤**，支持部分名称（如 `--name "哈哈"` 可匹配 "哈哈哈"、"0430-哈哈"）
 
 **Output columns**: 序号、任务ID、任务名称、类型(呼入/呼出)、状态(开启/关闭)、是否激活(激活/休眠)、并发量、AI对话模型、创建时间
+
+**⚠️ Agent 执行规范（CRITICAL）**：
+
+1. **必须实际执行 CLI 命令**，不得使用缓存或其他方式
+
+   ```bash
+   # ✅ 正确：实际执行命令
+   telrobot-cli task list
+   
+   # ❌ 错误：读取缓存或配置文件
+   cat ~/.telrobot-cli/tasks.json
+   ```
+
+2. **必须完整展示命令输出**，不得过滤或省略字段
+
+   - CLI 输出包含：任务名称、任务ID、状态、类型、并发量等
+   - Agent 必须**原样展示**或**以表格形式重新整理**
+   - **禁止**只显示 UUID 而不显示任务名称
+
+3. **输出格式要求**：
+
+   ```
+   ✅ 正确示例：
+   序号  任务ID                                  任务名称        类型    状态    激活    并发量   AI对话模型    创建时间
+   1     abc-123-def-456                        营销活动        呼出    开启    激活    10       GPT-4        2024-01-01
+   2     xyz-789-uvw-012                        客户回访        呼入    关闭    休眠    5        Claude       2024-01-02
+   
+   ❌ 错误示例：
+   找到2个任务：
+   - abc-123-def-456
+   - xyz-789-uvw-012
+   ```
+
+4. **必须包含的关键字段**：
+
+   - ✅ 任务名称（Name）- **必须显示**
+   - ✅ 任务ID（UUID）
+   - ✅ 状态（开启/关闭）
+   - ✅ 类型（呼入/呼出）
+   - ✅ 其他 CLI 输出的字段
 
 **User triggers**: "查看任务列表", "显示所有任务", "列出任务", "任务有哪些"
 
@@ -54,173 +137,101 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词]
 telrobot-cli task list --name <关键词>
 ```
 
-**Agent 使用场景**：当用户说"开启/停止/查看某个任务"时，若用户提供的是任务名称，**必须先用此命令搜索**，将结果原样展示给用户，再让用户确认 UUID。
+**Agent 使用场景**：当用户说“开启/停止/查看某个任务”时，若用户提供的是任务名称，**必须先用此命令搜索**，将结果**完整展示**给用户，再让用户确认 UUID。
 
-- 支持部分名称：`--name "你好"` 可匹配所有名称包含"你好"的任务
+**⚠️ Agent 执行规范（CRITICAL）**：
+
+1. **执行搜索命令**：
+
+   ```bash
+   telrobot-cli task list --name "用户提供的关键词"
+   ```
+
+2. **完整展示搜索结果**：
+
+   - 必须展示所有匹配的任务
+   - 必须包含任务名称、UUID、状态等完整信息
+   - 不得只显示 UUID
+
+3. **询问用户确认**：
+
+   ```
+   ✅ 正确示例：
+   找到以下任务：
+   序号  任务ID                                  任务名称        状态    类型
+   1     abc-123-def-456                        营销活动V1      开启    呼出
+   2     xyz-789-uvw-012                        营销活动V2      关闭    呼出
+   
+   请问您要操作哪一个任务？（输入序号）
+   
+   ❌ 错误示例：
+   找到2个任务，请确认：
+   - abc-123-def-456
+   - xyz-789-uvw-012
+   ```
+
+- 支持部分名称：`--name "你好"` 可匹配所有名称包含“你好”的任务
 - 结果展示与 `task list` 完全一致（含状态、类型、并发量等完整信息）
 
-**User triggers**: "搜索任务", "查找任务", "找一下任务"
+**User triggers**: "搜索任务", "查找任务", "找一下任务，查看任务"
 
----
-
-### Create Task
-
-```bash
-telrobot-cli task add [任务名称]
-```
-
-**完全交互式**，无需任何 flags，运行后进入引导流程：
-
-**创建模式选择**：
-- `[1] 默认配置`：全自动，任务名称自动生成（当前时间），所有参数使用系统默认值，一键完成
-- `[2] 自定义配置`：交互式逐步选择以下内容：
-  1. 话术组类型（AI话术组 / 机器人话术 / 语音助手）及具体话术组
-  2. 呼叫时间组（标记 `*` 为默认推荐）
-  3. 最大并发数（默认 1）
-  4. 运行时间范围（开始时间默认今天 00:00:00，结束时间默认今天 23:59:59；支持 `HH:MM:SS` 或 `YYYY-MM-DD HH:MM:SS` 格式）
-  5. 高级参数（可选）：重拨设置（间隔0-60秒、最大次数1-3）、背景音、转接组
-
-> **注意**：任务创建后默认已激活（IsActive=1），无需额外执行 `task activate`。只需配置线路后即可直接启动：`task set-line` → `task start`。
-
-**User triggers**: "创建任务", "新建任务", "添加任务"
-
----
-
-### Task Info
-
-```bash
-telrobot-cli task info <任务ID>
-```
-
-显示任务ID、名称、状态（运行中/已停止）、最大并发、CPS、回收限制、创建时间、修改时间。
-
-**User triggers**: "查看任务详情", "任务信息", "任务状态"
-
----
-
-### Task Stats
-
-```bash
-telrobot-cli task stats <任务ID>
-```
-
-显示任务名称、总号码数、已拨打数量、待拨打数量、完成率。
-
-**User triggers**: "任务统计", "运行概况", "拨打进度"
-
----
+### 2. 开启某个任务（task start）
 
 ### Start Task
 
 ```bash
-telrobot-cli task start <任务UUID>
+telrobot-cli task start [任务ID或名称] [--force]
 ```
 
-**重要：必须使用 UUID 执行，禁止用名称直接传给命令**（名称会触发交互式终端输入，AI 无法处理）。
+- 不传参数：交互式展示所有任务并选择
+- 传任务名称（非 UUID）：按名称模糊搜索
+- 传任务 ID（UUID 格式）：直接启动
+- `--force`：跳过线路预检，强制启动（**无线路启动将无法呼出，慎用**）
 
-**Agent 执行流程**：
-1. 若用户提供的是任务名称（非 UUID），先执行 `telrobot-cli task list --name "<关键词>"` 获取匹配任务
-2. 将命令输出**原样展示**给用户（含完整状态、类型、并发量等信息）
-3. **询问用户确认**："找到以上任务，请问您要启动哪一个？（输入序号）"
-4. 用户确认后，使用对应的 UUID 执行：`telrobot-cli task start <UUID>`
-5. 若用户提供的已经是 UUID，直接执行
+**⚠️ 启动前线路预检（IMPORTANT）**：
 
-**Error guidance**:
-- 报错含"休眠"：提示先执行 `telrobot-cli task activate <任务UUID>`，再重新启动
-- 报错含"线路"：**Agent 应自动进入线路配置流程**（见下方 Set Task Line），配置完毕后自动重试启动
+`task start` 命令在启动前会自动调用 `edit-info-pro` 接口检查 `task_extras.extras.line` 是否为空：
+- **呼入任务**（is_call_in=1）：无需线路，预检直接通过
+- **外呼任务**：无线路时预检拦截，提示先配置线路
+- 使用 `--force` 可跳过预检强制启动（不推荐，会导致“假成功”：任务显示已启动但无法呼出）
+
+**⚠️ Agent 执行规范（CRITICAL）**：
+
+1. **确认任务**：
+
+   - 若用户提供的是任务名称（非 UUID），先执行 `telrobot-cli task list --name "<关键词>"` 获取匹配任务
+   - **完整展示搜索结果**（包含任务名称、UUID、状态等）
+
+   ```
+   ✅ 正确示例：
+   找到以下任务：
+   序号  任务ID                                  任务名称        状态    类型
+   1     abc-123-def-456                        营销活动        关闭    呼出
+   2     xyz-789-uvw-012                        营销测试        关闭    呼出
+   
+   请问您要启动哪一个任务？（输入序号）
+   
+   ❌ 错误示例：
+   找到2个任务：
+   - abc-123-def-456
+   - xyz-789-uvw-012
+   ```
+
+2. **执行启动命令**：
+
+   - 用户确认后，使用对应的 UUID 执行：`telrobot-cli task start <UUID>`
+   - 若用户提供的已经是 UUID，直接执行
+   - **禁止**使用 `--force` 标志，除非用户明确要求强制启动
+
+3. **错误处理**：
+
+   - 报错含“休眠”：提示先执行 `telrobot-cli task activate <任务UUID>`，再重新启动
+   - 报错含“线路”或“未配置外呼线路”：**Agent 应自动进入线路配置流程**（见下方 Set Task Line），配置完毕后自动重试启动
+   - **禁止**静默处理错误或自动降级为 HTTP 请求
 
 **User triggers**: "启动任务", "开始任务", "运行任务"
 
----
 
-### Stop Task
-
-```bash
-telrobot-cli task stop <任务UUID>
-```
-
-**重要：必须使用 UUID 执行，禁止用名称直接传给命令**（名称会触发交互式终端输入，AI 无法处理）。
-
-**Agent 执行流程**：
-1. 若用户提供的是任务名称（非 UUID），先执行 `telrobot-cli task list --name "<关键词>"` 获取匹配任务
-2. 将命令输出**原样展示**给用户（含完整状态、类型、并发量等信息）
-3. **询问用户确认**："找到以上任务，请问您要停止哪一个？（输入序号）"
-4. 用户确认后，使用对应的 UUID 执行：`telrobot-cli task stop <UUID>`
-5. 若用户提供的已经是 UUID，直接执行
-
-**User triggers**: "停止任务", "暂停任务", "关闭任务"
-
----
-
-### Activate Task
-
-```bash
-telrobot-cli task activate [任务ID或名称]
-```
-
-激活休眠中的任务，激活后才能启动。若任务已激活，会提示无需重复操作。
-
-- 不传参数：交互式展示所有任务并选择
-- 传任务名称（非 UUID）：按名称模糊搜索
-- 传任务 ID（UUID 格式）：直接激活
-
-> **注意**：新建任务默认已激活，此命令主要用于激活**复制任务**（复制后默认休眠）或被手动停用的任务。
-
-**User triggers**: "激活任务", "唤醒任务"
-
----
-
-### Update Task
-
-```bash
-telrobot-cli task update <任务ID> --name="新名称"
-```
-
-当前仅支持更新任务名称（`--name / -n`）。
-
-**User triggers**: "更新任务", "修改任务名称", "重命名任务"
-
----
-
-### Copy Task
-
-```bash
-telrobot-cli task copy [任务ID或名称]
-```
-
-复制任务，返回新任务 ID 和名称。复制后新任务默认处于**休眠**状态，需执行 `task activate` 激活后才能启动。
-
-- 不传参数：交互式展示所有任务并选择
-- 传任务名称（非 UUID）：按名称模糊搜索
-- 传任务 ID（UUID 格式）：直接复制
-
-**User triggers**: "复制任务", "克隆任务"
-
----
-
-### Delete Task
-
-```bash
-telrobot-cli task delete <任务ID>
-```
-
-删除单个任务（不可恢复）。
-
-**User triggers**: "删除任务"
-
----
-
-### Batch Delete Tasks
-
-```bash
-telrobot-cli task batch-delete "任务ID1,任务ID2,任务ID3"
-```
-
-批量删除，执行前会要求 y/n 确认。
-
-**User triggers**: "批量删除任务"
-
----
 
 ### Set Task Line（配置外呼线路）
 
@@ -236,6 +247,7 @@ telrobot-cli task list-lines
 ```
 
 **`--line` 参数格式**：
+
 - `"1"` — 使用第1条线路，并发数取剩余最大值
 - `"1:5"` — 使用第1条线路，并发数为5
 - `"1,2:3"` — 使用第1条和第2条线路，第2条并发数为3
@@ -256,52 +268,191 @@ telrobot-cli task list-lines
 
 **User triggers**: "配置线路", "设置外呼线路", "给任务配线路", "任务没有线路"
 
----
 
-### Set Task Top（置顶）
+### 3. 暂停某个任务（task stop）
 
-```bash
-telrobot-cli task set-top <任务ID> on
-telrobot-cli task set-top <任务ID> off
-```
-
-**User triggers**: "任务置顶", "取消置顶"
-
----
-
-### To-Call Count（待拨打数量）
+### Stop Task
 
 ```bash
-telrobot-cli task to-call <任务ID>
+telrobot-cli task stop [任务ID或名称]
 ```
 
-显示该任务的待拨打号码数量。
+- 不传参数：交互式展示所有任务并选择
+- 传任务名称（非 UUID）：按名称模糊搜索
+- 传任务 ID（UUID 格式）：直接停止
 
-**User triggers**: "待拨数量", "剩余号码", "还有多少没拨"
+**⚠️ Agent 执行规范（CRITICAL）**：
 
+1. **确认任务**：
+
+   - 若用户提供的是任务名称（非 UUID），先执行 `telrobot-cli task list --name "<关键词>"` 获取匹配任务
+   - **完整展示搜索结果**（包含任务名称、UUID、状态等）
+
+   ```
+   ✅ 正确示例：
+   找到以下任务：
+   序号  任务ID                                  任务名称        状态    类型
+   1     abc-123-def-456                        营销活动        开启    呼出
+   2     xyz-789-uvw-012                        营销测试        开启    呼出
+   
+   请问您要停止哪一个任务？（输入序号）
+   
+   ❌ 错误示例：
+   找到2个任务：
+   - abc-123-def-456
+   - xyz-789-uvw-012
+   ```
+
+2. **执行停止命令**：
+
+   - 用户确认后，使用对应的 UUID 执行：`telrobot-cli task stop <UUID>`
+   - 若用户提供的已经是 UUID，直接执行
+
+3. **禁止静默处理错误**：
+
+   - 命令失败时必须展示错误信息
+   - **禁止**自动降级为 HTTP 请求
+
+**User triggers**: "停止任务", "暂停任务", "关闭任务"
 ---
 
-### Edit Info（编辑信息）
+### 4. 对某个任务的拨打情况进行总结归纳（task stat）
+
+> **⚠️ 关键区分**：此命令返回**统计数据和报表**（数字、比率、分布）。如需查询**具体客户联系方式**（公司、联系人、手机号），请使用 `task customers-by-intention`。
 
 ```bash
-telrobot-cli task edit-info <任务ID>
+telrobot-cli task stat [任务ID或名称] --type <统计类型> [--date "开始日期,结束日期"]
 ```
 
-显示任务编辑信息（ID、名称、并发、CPS、回收限制）。
+获取任务的详细统计数据，**必须通过 `--type` 指定统计类型**，不再支持交互式选择。
+
+**Flags**:
+- `--type, -t`：**必填**，统计类型，常用：
+  - `over_all` - 综合总览（**用于拨打情况总结**）
+  - `intention` - 意向分布（返回各意向等级的数字，**不是客户联系方式**）
+  - `answer_rate` - 接通率统计
+  - `number_status` - 号码状态分布
+  - `area` - 地区分布
+  - `operator` - 运营商分布
+  - `call_peak` - 呼叫高峰时段
+  - 其他类型：`bill`、`rounds`、`realtime_rate`、`task_progress`、`hangup_disposition`、`customer_level` 等
+- `--date, -d`：日期范围，格式 `YYYY-MM-DD,YYYY-MM-DD`（**默认今天**）
+
+**Agent 执行流程**：
+
+**第一步：确认任务**
+- 执行 `telrobot-cli task list` 获取所有任务列表
+- 以表格形式展示所有任务（序号、任务ID、任务名称、状态、创建时间）
+- 询问用户选择要查询的任务序号
+
+**第二步：确定查询时间**
+- 询问用户查询的时间范围：
+  ```
+  请选择查询时间范围：
+  1. 今天
+  2. 昨天
+  3. 本周
+  4. 上周
+  5. 本月
+  6. 自定义日期范围（如：2024-05-01,2024-05-31）
+  ```
+
+**第三步：执行综合统计**
+```bash
+telrobot-cli task stat <任务UUID> --type over_all --date "<日期范围>"
+```
+- 以**中文可读报表形式**展示总结
+- 必须包含：总拨打数、接通数、接通率、各意向等级分布（A/B/C/D级客户数量）、通话时长统计
+
+**使用示例**：
+```bash
+# 查看今天的拨打情况总结（最常用）
+telrobot-cli task stat <任务ID> --type over_all
+
+# 查看指定日期的拨打情况总结
+telrobot-cli task stat <任务ID> --type over_all --date "2024-05-01,2024-05-31"
+
+# 查看意向分布（返回数字，不是客户联系方式）
+telrobot-cli task stat <任务ID> --type intention
+
+# 查看接通率
+telrobot-cli task stat <任务ID> --type answer_rate --date "2024-05-01,2024-05-31"
+```
+
+**⚠️ Agent 展示要求**：
+- ✅ 必须完整展示命令输出的所有统计数据
+- ✅ 关键指标加注：✅ 正常 ⚠️ 偏低 ❌ 异常
+
+**User triggers**: "任务总结", "拨打情况总结", "今天拨打情况", "本周数据总结", "任务报表", "查看任务统计", "接通率", "意向分布"
 
 ---
 
-## Task Operation Workflow
+### 5. 对某个任务的某类意向客户进行获取（task customers-by-intention）
 
-典型操作流程：
+> **⚠️ 关键区分**：此命令返回**具体客户详情**（公司名、联系人姓名、手机号码）。如需查看**意向分布统计数字**（A级X个、B级Y个），请使用 `task stat --type intention`。
 
+```bash
+telrobot-cli task customers-by-intention [--output <格式>]
 ```
-1. 创建任务（task add）         ← 创建后任务默认已激活（无需手动激活）
-2. 配置线路（task set-line）    ← 新建任务默认无线路，必须先配置
-3. 启动任务（task start）
-4. 查看进度（task stats）
-5. 停止任务（task stop）
+
+**命令特性**：此命令为**全交互式**，运行后自动完成以下流程：
+1. 自动获取任务列表 → 用户选择目标任务
+2. 自动获取意向标签 → 用户选择意向标签（支持多选）
+3. 自动查询并展示客户信息
+
+> **Agent 只需直接执行此命令**，无需预先调用 `task stat --type intention` 获取意向标签，命令内部会自动完成。
+
+**Flags**:
+- `--output, -o`：输出格式，默认 `table`，可选 `json`、`csv`
+
+**表格格式输出字段**：
+| 序号 | 公司 | 联系人 | 手机号 | 意向标签 | 通话时间 | 通话时长 |
+|------|------|--------|--------|----------|----------|----------|
+
+
+### 6. Activate Task
+
+```bash
+telrobot-cli task activate [任务ID或名称]
 ```
+
+激活休眠中的任务，激活后才能启动。若任务已激活，会提示无需重复操作。
+
+- 不传参数：交互式展示所有任务并选择
+- 传任务名称（非 UUID）：按名称模糊搜索
+- 传任务 ID（UUID 格式）：直接激活
+
+> **注意**：新建任务默认已激活，此命令主要用于激活**复制任务**（复制后默认休眠）或被手动停用的任务。
+
+**User triggers**: "激活任务", "唤醒任务"
+
+
+
+**⚠️ Agent 执行规范（CRITICAL）**：
+
+1. **直接执行命令**：
+   ```bash
+   telrobot-cli task customers-by-intention --output table
+   ```
+   命令会自动引导用户完成：选择任务 → 选择意向标签 → 展示客户信息
+
+2. **禁止多余步骤**：
+   ```bash
+   # ❌ 错误：预先调用 task stat 获取意向标签（命令内部已自动获取）
+   telrobot-cli task stat <UUID> --type intention
+
+   # ✅ 正确：直接运行 customers-by-intention，一步到位
+   telrobot-cli task customers-by-intention --output table
+   ```
+
+3. **结果展示**：以表格形式展示客户信息，如果查询结果为空则告知用户
+
+**注意事项**：
+1. 意向标签完全由接口动态返回，支持任意扩展（A-Z、1-26等）
+2. 如果任务列表为空，命令会自动退出
+3. 如果意向标签为空，命令会自动退出
+
+**User triggers**: "按意向查客户", "查询意向客户", "A级客户有哪些", "高意向客户", "意向客户列表", "获取某类意向客户", "意向客户联系方式"
 
 ---
 

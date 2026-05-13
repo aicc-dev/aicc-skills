@@ -4,7 +4,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$DEFAULT_BASE_URL = "https://releases.telrobot.com/latest"
+$DEFAULT_BASE_URL = "https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest"
 
 # ── 平台检测（Windows 仅支持 amd64）────────────────────────────
 $arch = $env:PROCESSOR_ARCHITECTURE
@@ -18,10 +18,10 @@ if ($arch -eq "AMD64" -or $arch -eq "x86_64") {
 $assetName = "telrobot-windows-${normalizedArch}.exe"
 
 # ── 路径解析 ────────────────────────────────────────────────────
-$telrobotHome = if ($env:TELROBOT_HOME) { $env:TELROBOT_HOME } else { Join-Path $HOME ".telrobot" }
+$telrobotHome = if ($env:TELROBOT_HOME) { $env:TELROBOT_HOME } else { Join-Path $HOME ".telrobot-cli" }
 $binDir       = if ($env:TELROBOT_BIN_DIR) { $env:TELROBOT_BIN_DIR } else { Join-Path $telrobotHome "bin" }
 $destination  = Join-Path $binDir "telrobot-cli.exe"
-$configPath   = if ($env:TELROBOT_CONFIG_PATH) { $env:TELROBOT_CONFIG_PATH } else { Join-Path $telrobotHome "config.json" }
+$configPath   = if ($env:TELROBOT_CONFIG_PATH) { $env:TELROBOT_CONFIG_PATH } else { Join-Path $telrobotHome "config.yaml" }
 
 $baseUrl = if ($env:TELROBOT_DOWNLOAD_BASE_URL) {
     $env:TELROBOT_DOWNLOAD_BASE_URL.TrimEnd("/")
@@ -60,18 +60,18 @@ try {
 # ── 写入配置 ─────────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path (Split-Path $configPath) | Out-Null
 
-$config = [ordered]@{
-    executablePath = $destination
-    executableFound = $true
-    apiUrl = $apiUrl
-    version = "1.0.0"
-}
+# 写入 YAML 格式配置（CLI 实际读取的格式）
+$configContent = @"
+server:
+  baseURL: $apiUrl
+  apiVersion: v1
+auth:
+  token: $token
+output:
+  format: table
+"@
 
-if ($token) {
-    $config["token"] = $token
-}
-
-$config | ConvertTo-Json -Depth 3 | Set-Content -Path $configPath -Encoding UTF8
+Set-Content -Path $configPath -Value $configContent -Encoding UTF8
 
 Write-Host "✅ Installed Telrobot CLI: $destination"
 Write-Host "📝 Wrote config: $configPath"

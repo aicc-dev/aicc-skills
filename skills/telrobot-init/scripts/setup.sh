@@ -2,7 +2,7 @@
 set -eu
 
 
-DEFAULT_BASE_URL="https://releases.telrobot.com/latest"
+DEFAULT_BASE_URL="https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest"
 
 normalize_platform() {
   case "$1" in
@@ -34,29 +34,25 @@ else
 fi
 
 url="${base_url}/${asset}"
-telrobot_home="${TELROBOT_HOME:-"$HOME/.telrobot"}"
+telrobot_home="${TELROBOT_HOME:-"$HOME/.telrobot-cli"}"
 bin_dir="${TELROBOT_BIN_DIR:-"$telrobot_home/bin"}"
 destination="${bin_dir}/telrobot-cli"
-config_path="${TELROBOT_CONFIG_PATH:-"$telrobot_home/config.json"}"
+config_path="${TELROBOT_CONFIG_PATH:-"$telrobot_home/config.yaml"}"
 api_url="${TELROBOT_API_URL:-"http://localhost:8001"}"
 
 write_config() {
   mkdir -p "$(dirname "$config_path")"
 
-  # Start config object
-  printf "{\n" > "$config_path"
-  printf "  \"executablePath\": \"%s\",\n" "$destination" >> "$config_path"
-  printf "  \"executableFound\": true,\n" >> "$config_path"
-  printf "  \"apiUrl\": \"%s\",\n" "$api_url" >> "$config_path"
-  printf "  \"version\": \"1.0.0\"\n" >> "$config_path"
-
-  # Add token if provided
-  if [ -n "${TELROBOT_TOKEN:-}" ]; then
-    printf "  ,\"token\": \"%s\"\n" "$TELROBOT_TOKEN" >> "$config_path"
-  fi
-
-  # End config object
-  printf "}\n" >> "$config_path"
+  # 写入 YAML 格式配置（CLI 实际读取的格式）
+  cat > "$config_path" <<EOF
+server:
+  baseURL: ${api_url}
+  apiVersion: v1
+auth:
+  token: ${TELROBOT_TOKEN:-}
+output:
+  format: table
+EOF
 }
 
 if [ "${TELROBOT_SETUP_DRY_RUN:-}" = "1" ]; then

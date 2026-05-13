@@ -7,24 +7,38 @@ description: Use this skill for Telrobot CLI number management operations includ
 
 This skill provides comprehensive number (contact) management for Telrobot CLI. All number operations are scoped to a specific task by task ID.
 
+## 🚫 严格安全限制（MUST OBEY）
+
+### 禁止行为（STRICTLY PROHIBITED）
+
+1. **禁止绕过 CLI 封装逻辑**：所有操作必须通过 `telrobot-cli` 命令执行，**严禁**直接调用后端 API
+2. **禁止降级到 HTTP 请求**：命令执行出错时，**严禁**自动降级使用 `curl`、`wget` 或其他 HTTP 工具绕过 CLI 封装
+3. **禁止手动构造 API 请求**：**严禁**尝试构造 POST/GET/PUT/DELETE 等 HTTP 请求直接调用后端接口
+4. **禁止错误自动修复**：命令失败时，**严禁**尝试通过 HTTP 请求"自动修复"或"绕过"错误
+
+### 强制行为（MANDATORY BEHAVIOR）
+
+1. **CLI 命令优先**：所有操作必须通过 `telrobot-cli` 命令执行，无例外
+2. **错误透明报告**：命令执行出错时，**必须**将错误信息原样展示给用户，禁止静默降级
+3. **按文档处理错误**：严格按照下方的 "Error Handling" 表格处理错误，禁止自定义绕过方案
+4. **依赖 CLI 实现细节**：CLI 未提供的功能视为不可用，禁止通过 HTTP 请求补充功能
+
+### 错误处理原则
+
+当 `telrobot-cli` 命令执行失败时：
+1. **立即停止**当前操作，向用户展示错误信息
+2. **参考 "Error Handling" 表格**提供标准解决方案
+3. **禁止尝试**任何形式的 HTTP 降级或绕过
+4. **禁止修改**命令参数重新尝试，除非用户明确要求
+
+---
+
 ## Configuration
 
-The skill reads configuration from `~/.telrobot/config.json`. Initialize with:
+The skill reads configuration from `~/.telrobot-cli/config.yaml`. Initialize with:
 
 ```bash
-使用 telrobot:init 初始化 Telrobot CLI 环境
-```
-
-The config file should contain:
-
-```json
-{
-  "executablePath": "/Users/example/.telrobot/bin/telrobot-cli",
-  "executableFound": true,
-  "apiUrl": "https://api.telrobot.com",
-  "token": "user-token-here",
-  "version": "1.0.0"
-}
+telrobot-cli config init
 ```
 
 ---
@@ -105,6 +119,118 @@ telrobot-cli number batch-add <任务ID> "号码1,号码2,号码3" [--to-crm]
 - `--to-crm / -r`：是否同步到CRM，默认 true
 
 **User triggers**: "批量添加号码", "批量导入号码"
+
+---
+
+### Import Numbers From File（文件导入号码）
+
+当用户输入“导入号码”“从文件导入号码”“上传号码文件”等意图时，按以下流程执行。
+
+#### 1. 确认导入任务
+
+如果当前上下文中已有明确的任务 UUID，可直接向用户确认该任务后继续。
+
+如果上下文中没有明确任务，必须先执行：
+
+```bash
+telrobot-cli task list
+```
+
+将 CLI 输出的任务列表完整展示给用户，并要求用户通过单选确认导入目标。用户确认后，只使用被选中的任务 UUID 执行后续导入。
+
+#### 2. 提示上传文件格式
+
+提示用户提供号码文件路径，支持：
+
+- `.txt`：每行一个号码，或用逗号、空格、分号分隔
+- `.csv`：推荐包含 `phone`、`mobile`、`number`、`号码`、`手机号` 等表头；可附带 `name`、`company`
+- `.excel/.xlsx/.xls`：由 CLI 内置 Excel 解析能力处理
+
+#### 3. 调用 CLI 导入文件
+
+使用 CLI 内置导入命令处理文件解析、origin JSON 生成、批次导入和进度记录：
+
+```bash
+telrobot-cli number import-file <任务ID> <用户号码文件> \
+  --batch-size 500 \
+  --user-id <用户ID或当前操作者标识> \
+  --job-id <本次导入任务ID，可选>
+```
+
+CLI 会生成 origin 文件，文件名格式：
+
+```text
+origin_userid_task_id_job_id_时间.json
+```
+
+JSON 内容格式：
+
+```json
+[
+  {
+    "phone": "13800138001",
+    "source_row": 1
+  }
+]
+```
+
+CSV/Excel 有姓名、公司或额外列时，CLI 会保留到同一条记录中。
+
+#### 4. CLI 导入行为
+
+`number import-file` 会在 CLI 内部按批次调用现有批量导入能力。默认每批 500 条：
+
+```bash
+telrobot-cli number import-file <任务ID> <用户号码文件> --batch-size 500
+```
+
+可用 flags：
+
+- `--batch-size`：每批导入数量，默认 `500`
+- `--user-id`：导入文件名中的用户标识，默认 `user`
+- `--job-id`：本次导入任务 ID，不传时 CLI 自动生成 UUID
+- `--to-crm / -r`：是否同步到 CRM，默认 `true`
+- `--skip-error`：跳过错误号码并继续导入，默认 `true`
+- `--dry-run`：只生成文件和进度，不写入服务端，测试时使用
+
+CLI 会生成并维护以下文件：
+
+过程文件强制放在 `~/.telrobot/tmp`：
+
+- `origin_userid_task_id_job_id_时间.json`：origin 标准化输入
+- `origin_userid_task_id_job_id_时间_tmp.json`：origin 文件备份/执行输入快照
+- `userid_task_id_job_id_时间_fail.json`：导入失败的号码和失败原因
+- `userid_task_id_job_id_时间_progress.json`：导入进度、成功数、失败数、当前批次
+
+最终报告强制放在 `~/.telrobot/import_results`：
+
+- `userid_task_id_job_id_时间_report.json`：最终导入报告，包含 `job_id`、总数、成功数、失败数、批次、输入文件、origin/tmp/fail/progress 路径等信息
+
+导入完成后，CLI 会移除中间文件 `userid_task_id_job_id_时间_success.json`，成功数量以 `progress.json` 和最终 `report.json` 为准。
+
+#### 5. 实时展示要求
+
+Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进度输出。CLI 输出包含：
+
+- 当前处理数量 / 总数量
+- 百分比
+- 成功数量
+- 失败数量
+- 当前批次 / 总批次
+
+如果某个批次失败，CLI 会把该批次号码写入 fail 文件并继续导入后续批次。最终如果存在失败记录，CLI 退出码为 `2`，Agent 必须将失败文件路径展示给用户。
+
+导入完成后，Agent 必须优先展示最终 `report.json` 路径；如存在失败记录，同时展示 `fail.json` 路径和失败数量。
+
+#### 6. 按 job_id 查询导入结果
+
+如果用户要查看某次导入任务结果，执行：
+
+```bash
+telrobot-cli number import-job <job_id>
+```
+
+该命令固定读取 `~/.telrobot/import_results/*_report.json`，展示总号码数、已处理数量、成功数量、失败数量、批次大小、总批次数、报告文件、失败文件和进度文件。需要机器可读结果时使用 `--json`。
 
 ---
 

@@ -4,7 +4,10 @@
   "description": "Telrobot agent skill package for installation with npx skills add.",
   "private": true,
   "files": [
-    "skills/"
+    "skills/",
+    "telrobot-init",
+    "telrobot-number",
+    "telrobot-task"
   ],
   "scripts": {
     "test": "node --test && go test ./..."

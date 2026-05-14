@@ -30,7 +30,7 @@ $baseUrl = if ($env:TELROBOT_DOWNLOAD_BASE_URL) {
 }
 $url = "${baseUrl}/${assetName}"
 
-$apiUrl = if ($env:TELROBOT_API_URL) { $env:TELROBOT_API_URL } else { "http://localhost:8001" }
+$apiUrl = if ($env:TELROBOT_API_URL) { $env:TELROBOT_API_URL } else { "https://internal-saas.telrobot.top/cli/" }
 $token  = $env:TELROBOT_TOKEN
 
 # ── Dry-run 模式 ─────────────────────────────────────────────────

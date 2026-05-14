@@ -23,7 +23,7 @@ function updateConfig(configPath, executablePath, token) {
   // 写入 YAML 格式配置（CLI 实际读取的格式）
   const configLines = [
     'server:',
-    '  baseURL: http://localhost:8001',
+    '  baseURL: https://internal-saas.telrobot.top/cli/',
     '  apiVersion: v1',
     'auth:',
     `  token: ${token}`,

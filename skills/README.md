@@ -224,12 +224,11 @@ npx skills add gsq/telrobot-saas-cli -a <agent-name> -g -y
 
 | Agent | 安装命令 |
 |-------|---------|
-| WorkBuddy | `npx skills add gsq/telrobot-saas-cli -a workbuddy -g -y` |
-| Qoder | `npx skills add gsq/telrobot-saas-cli -a qoder -g -y` |
-| Cursor | `npx skills add gsq/telrobot-saas-cli -a cursor -g -y` |
-| Claude Code | `npx skills add gsq/telrobot-saas-cli -a claude-code -g -y` |
-| GitHub Copilot | `npx skills add gsq/telrobot-saas-cli -a github-copilot -g -y` |
-| Windsurf | `npx skills add gsq/telrobot-saas-cli -a windsurf -g -y` |
+| Qoder | `npx skills add gsq172/aicc-skills  -a qoder -g -y` |
+| Cursor | `npx skills add gsq172/aicc-skills  -a cursor -g -y` |
+| Claude Code | `npx skills add gsq172/aicc-skills  -a claude-code -g -y` |
+| GitHub Copilot | `npx skills add gsq172/aicc-skills  -a github-copilot -g -y` |
+| Windsurf | `npx skills add gsq172/aicc-skills  -a windsurf -g -y` |
 
 > 完整支持列表：执行 `npx skills add --help` 查看所有可用 agent 名称。
 
@@ -240,7 +239,7 @@ npx skills add gsq/telrobot-saas-cli -a <agent-name> -g -y
 在 AI Agent 中：
 ```
 用户：安装 telrobot 技能包
-Agent：执行 npx skills add gsq/telrobot-saas-cli...
+Agent：执行 npx skills add gsq172/aicc-skills...
 ```
 
 #### 2. 初始化环境
@@ -270,7 +269,7 @@ Agent：读取配置 → 执行 CLI 命令 → 返回结果
 **结构**:
 ```yaml
 server:
-  baseURL: http://localhost:8001
+  baseURL:  https://internal-saas.telrobot.top/cli/
   apiVersion: v1
 auth:
   token: user-token-here

@@ -68,7 +68,7 @@ After initialization, the config file is created at `~/.telrobot-cli/config.yaml
 
 ```yaml
 server:
-  baseURL: http://localhost:8001
+  baseURL: https://internal-saas.telrobot.top/cli/
   apiVersion: v1
 auth:
   token: user-token-here

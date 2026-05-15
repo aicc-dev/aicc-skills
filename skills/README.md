@@ -222,13 +222,14 @@ npx skills add gsq/telrobot-saas-cli -a <agent-name> -g -y
 
 支持的 Agent 示例：
 
-| Agent | 安装命令 |
-|-------|---------|
-| Qoder | `npx skills add gsq172/aicc-skills  -a qoder -g -y` |
-| Cursor | `npx skills add gsq172/aicc-skills  -a cursor -g -y` |
-| Claude Code | `npx skills add gsq172/aicc-skills  -a claude-code -g -y` |
-| GitHub Copilot | `npx skills add gsq172/aicc-skills  -a github-copilot -g -y` |
-| Windsurf | `npx skills add gsq172/aicc-skills  -a windsurf -g -y` |
+| Agent          | 安装命令                                                            |
+|----------------|-----------------------------------------------------------------|
+| WorkBuddy      | `npx skills add  aicc-dev/aicc-skills  -a workbuddy -g -y`      |
+| Qoder          | `npx skills add  aicc-dev/aicc-skills  -a qoder -g -y`          |
+| Cursor         | `npx skills add  aicc-dev/aicc-skills  -a cursor -g -y`         |
+| Claude Code    | `npx skills add  aicc-dev/aicc-skills  -a claude-code -g -y`    |
+| GitHub Copilot | `npx skills add  aicc-dev/aicc-skills  -a github-copilot -g -y` |
+| Windsurf       | `npx skills add  aicc-dev/aicc-skills  -a windsurf -g -y`       |
 
 > 完整支持列表：执行 `npx skills add --help` 查看所有可用 agent 名称。
 

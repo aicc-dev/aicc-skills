@@ -7,6 +7,44 @@ description: Use this skill for Telrobot CLI number management operations includ
 
 This skill provides comprehensive number (contact) management for Telrobot CLI. All number operations are scoped to a specific task by task ID.
 
+## 🚀 安装后使用方式（CRITICAL）
+
+**安装此 Skill 后，用户不需要执行任何初始化命令，也不需要调用 `@skill:xxx`。**
+
+**正确用法**：直接描述你的需求，Agent 会自动处理一切：
+```
+用户："帮我导入一批号码到营销任务"
+→ Agent 自动检测环境
+→ 环境未初始化 → Agent 自动执行 setup.js
+→ Agent 输出：请提供云蝠系统内配置AI助理下生成的token信息
+→ 用户提供 Token
+→ Agent 自动配置并验证
+→ Agent 继续处理号码导入请求
+```
+
+**错误用法**：
+```
+❌ 用户："@skill:telrobot-init"
+❌ 用户："帮我初始化 telrobot"
+❌ 用户："执行 setup.js"
+```
+
+## ⚠️ 前置环境检查（MUST CHECK）
+
+**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境状态**：
+
+1. 检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
+2. 检查 `~/.telrobot-cli/config.yaml` 是否存在
+3. 检查配置中 Token 是否已配置
+
+**如果环境未初始化**（CLI 或配置缺失）：
+- **Agent 自动执行初始化**：使用 `telrobot-init` skill 的 `scripts/setup.js` 或 `scripts/setup.sh`
+- 下载 CLI 二进制 + 生成基础配置（Token 留空）
+- **Agent 在对话中输出**：`请提供云蝠系统内配置AI助理下生成的token信息`
+- 等待用户提供 Token，然后自动配置并验证
+
+**用户无需手动调用 `@skill:telrobot-init`**，Agent 会自动处理环境初始化。
+
 ## 🚫 严格安全限制（MUST OBEY）
 
 ### 禁止行为（STRICTLY PROHIBITED）

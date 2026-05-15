@@ -5,8 +5,17 @@ description: Initialize Telrobot CLI environment by downloading platform-specifi
 
 # Telrobot Init
 
-Use this skill when the user asks to initialize Telrobot, install the Telrobot CLI executable, run Telrobot setup, or fix a missing Telrobot binary.
-Also use it when the user asks to set, configure, or verify the local Telrobot token and API configuration.
+**此 Skill 不直接暴露给用户使用**。当用户安装 `telrobot-task` 或 `telrobot-number` 后，Agent **自动**调用此 Skill 完成环境初始化。
+
+**用户不需要知道此 Skill 的存在**，也不需要手动调用 `@skill:telrobot-init`。
+
+## 使用场景
+
+- 当用户**用自然语言描述需求**（如"查看任务"、"导入号码"）时，Agent 自动检测环境，如果未初始化则自动调用此 Skill
+- 当用户需要配置或验证 Token 时，Agent 自动调用此 Skill
+- 当 CLI 二进制文件缺失或损坏时，Agent 自动调用此 Skill 修复
+
+**注意**：安装 Skill 后不会立即自动初始化，只有当用户**首次使用**相关功能时才会触发初始化流程。
 
 ## 🚫 严格安全限制（MUST OBEY）
 
@@ -48,7 +57,7 @@ Also use it when the user asks to set, configure, or verify the local Telrobot t
 - API 服务器地址（baseURL）
 - 配置文件中的任何 URL
 
-**示例汇报格式**：
+**示例汇报格式（Token 未配置）**：
 ```
 ✅ Telrobot CLI 环境初始化完成
 
@@ -57,8 +66,53 @@ CLI 路径      ~/.telrobot-cli/bin/telrobot-cli
 平台          darwin-arm64 (Apple Silicon)
 Token         ❌ 未配置
 
-可以开始使用了，比如：
-  telrobot-cli task list
+请提供云蝠系统内配置AI助理下生成的token信息
+```
+
+**示例汇报格式（Token 已配置）**：
+```
+✅ Telrobot CLI 环境初始化完成
+
+项目          状态
+CLI 路径      ~/.telrobot-cli/bin/telrobot-cli
+平台          darwin-arm64 (Apple Silicon)
+Token         ✅ 已配置
+
+[Agent 自动拉取任务列表]
+telrobot-cli task list --page 1 --size 5
+
+✅ 验证成功！查询到 3 个任务：
+
+1. 营销外呼任务（abc-123...）- 运行中，10 并发
+2. 客服回访（def-456...）- 已暂停，5 并发
+3. 调研问卷（ghi-789...）- 运行中，8 并发
+
+现在可以开始使用了！比如：
+- "帮我查看当前账号下的呼回任务"
+- "启动营销外呼任务"
+- "查询 A 级意向客户"
+```
+
+**Token 验证失败场景**：
+```
+✅ Telrobot CLI 环境初始化完成
+
+项目          状态
+CLI 路径      ~/.telrobot-cli/bin/telrobot-cli
+平台          darwin-arm64 (Apple Silicon)
+Token         ✅ 已配置
+
+[Agent 自动拉取任务列表]
+telrobot-cli task list --page 1 --size 5
+
+❌ 命令执行失败：认证失败，Token 无效或已过期
+
+❌ Token 验证失败，无法拉取任务列表。请检查：
+1. Token 是否正确复制（完整复制，不要遗漏字符）
+2. Token 是否已过期（云蝠系统内重新生成）
+3. 账号是否有权限访问任务
+
+请重新生成并提供最新的 token 信息
 ```
 
 ## Token 配置引导（MANDATORY）

@@ -1,6 +1,6 @@
 ---
 name: telrobot:init
-description: Initialize Telrobot CLI environment by downloading platform-specific executable and configuring local settings.
+description: Initialize Telrobot CLI environment automatically after skill installation. Downloads platform-specific executable, configures local settings, and guides token setup. MUST be triggered immediately after any telrobot skill is installed.
 ---
 
 # Telrobot Init

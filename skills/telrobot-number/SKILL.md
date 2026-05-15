@@ -157,6 +157,8 @@ telrobot-cli number import-file <任务ID> <用户号码文件> \
   --job-id <本次导入任务ID，可选>
 ```
 
+**CRM 导入说明**：当 `--to-crm=true`（默认开启）时，CLI 会将文件中解析出的 **姓名（name）**、**公司（company）** 和额外列数据一并传给服务端，CRM 客户将使用文件中的真实姓名而非自动生成的占位名。
+
 CLI 会生成 origin 文件，文件名格式：
 
 ```text

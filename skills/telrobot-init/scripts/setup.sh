@@ -84,4 +84,13 @@ write_config
 
 printf "✅ Installed Telrobot CLI: %s\n" "$destination"
 printf "📝 Wrote config: %s\n" "$config_path"
-printf "🚀 Ready to use! Agents will read executablePath from config.\n"
+
+# 检查是否配置了 Token
+if [ -z "${TELROBOT_TOKEN:-}" ]; then
+  printf "\n⚠️  Token 未配置，请执行以下命令：\n"
+  printf "   telrobot-cli config set-token <your-token>\n"
+  printf "\n或使用环境变量一次性完成：\n"
+  printf "   TELROBOT_TOKEN=your-token %s\n" "$0"
+else
+  printf "🚀 Ready to use! Agents will read executablePath from config.\n"
+fi

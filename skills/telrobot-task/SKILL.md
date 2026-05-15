@@ -1,4 +1,4 @@
----
+----
 name: telrobot:task
 description: Use this skill for Telrobot CLI task management operations including listing tasks, starting/stopping tasks, viewing call statistics summaries, and querying customers by intention.
 ---
@@ -76,7 +76,7 @@ telrobot-cli config init
 ### List Tasks
 
 ```bash
-telrobot-cli task list [--page N] [--size N] [--name 关键词]
+telrobot-cli task list [--page N] [--size N] [--name 关键词] [--active N] [--call-in N] [--date-start YYYY-MM-DD] [--date-end YYYY-MM-DD] [--status N] [--group-type 类型] [--groups ID] [--category ID]
 ```
 
 **Flags**:
@@ -84,6 +84,19 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词]
 - `--page N`：页码，默认 1
 - `--size N`：每页数量，默认 20
 - `--name 关键词`：按任务名称**模糊过滤**，支持部分名称（如 `--name "哈哈"` 可匹配 "哈哈哈"、"0430-哈哈"）
+- `--active N`：按激活状态筛选（-1: 不筛选, 0: 休眠, 1: 激活）
+- `--call-in N`：按呼叫类型筛选（-1: 不筛选, 0: 呼出, 1: 呼入）
+- `--date-start YYYY-MM-DD`：按创建时间筛选-开始日期
+- `--date-end YYYY-MM-DD`：按创建时间筛选-结束日期
+- `--status N`：按任务状态筛选（0: 不筛选, 1: 暂停, 2: 启动）
+- `--group-type 类型`：按话术组类型筛选（'': 不筛选, 'group': 1.0话术, 'robot': 2.0话术, 'llm': LLM话术）
+- `--groups ID`：按话术分组ID筛选（0: 不筛选）
+- `--category ID`：按分类ID筛选（'': 不筛选）
+
+**⚠️ 重要行为说明**：
+- **不加筛选条件时**：默认分页显示（第1页，20条/页）
+- **使用任何筛选条件时**（`--name`/`--active`/`--call-in`/`--date-*`/`--status`/`--group-type`/`--groups`/`--category`）：**自动获取所有分页数据**，展示完整筛选结果
+- 这样确保筛选结果不会因分页而遗漏
 
 **Output columns**: 序号、任务ID、任务名称、类型(呼入/呼出)、状态(开启/关闭)、是否激活(激活/休眠)、并发量、AI对话模型、创建时间
 
@@ -94,6 +107,7 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词]
    ```bash
    # ✅ 正确：实际执行命令
    telrobot-cli task list
+   telrobot-cli task list --name "营销"  # 自动获取所有筛选结果
    
    # ❌ 错误：读取缓存或配置文件
    cat ~/.telrobot-cli/tasks.json
@@ -125,9 +139,58 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词]
    - ✅ 任务ID（UUID）
    - ✅ 状态（开启/关闭）
    - ✅ 类型（呼入/呼出）
+   - ✅ 激活状态（激活/休眠）
    - ✅ 其他 CLI 输出的字段
 
-**User triggers**: "查看任务列表", "显示所有任务", "列出任务", "任务有哪些"
+**User triggers**: "查看任务列表", "显示所有任务", "列出任务", "任务有哪些","查看我的任务","查看全部任务"
+
+**使用示例**：
+```bash
+# 查看任务列表（分页显示）
+telrobot-cli task list
+
+# 按名称搜索（自动获取全部结果）
+telrobot-cli task list --name "营销"
+
+# 查看已激活的任务（自动获取全部结果）
+telrobot-cli task list --active 1
+
+# 查看休眠的任务（自动获取全部结果）
+telrobot-cli task list --active 0
+
+# 查看呼入任务（自动获取全部结果）
+telrobot-cli task list --call-in 1
+
+# 查看呼出任务（自动获取全部结果）
+telrobot-cli task list --call-in 0
+
+# 按时间范围筛选（自动获取全部结果）
+telrobot-cli task list --date-start "2024-05-01" --date-end "2024-05-31"
+
+# 查看启动的任务（自动获取全部结果）
+telrobot-cli task list --status 2
+
+# 查看暂停的任务（自动获取全部结果）
+telrobot-cli task list --status 1
+
+# 查看LLM话术任务（自动获取全部结果）
+telrobot-cli task list --group-type llm
+
+# 查看2.0机器人话术任务（自动获取全部结果）
+telrobot-cli task list --group-type robot
+
+# 按话术分组ID筛选（自动获取全部结果）
+telrobot-cli task list --groups 123
+
+# 按分类ID筛选（自动获取全部结果）
+telrobot-cli task list --category 456
+
+# 组合筛选（自动获取全部结果）
+telrobot-cli task list --name "营销" --active 1 --call-in 0 --status 2
+
+# 手动翻页查看（不使用筛选时）
+telrobot-cli task list --page 2 --size 50
+```
 
 ---
 

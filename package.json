@@ -1,19 +1,28 @@
 {
   "name": "telrobot-skills",
   "version": "1.0.0",
-  "description": "Telrobot agent skill package for installation with npx skills add.",
+  "description": "Telrobot agent skill package for installation with npx skills add. Provides telrobot:init, telrobot:task, and telrobot:number skills for CLI environment initialization, task management, and number operations.",
   "private": true,
   "files": [
-    "skills/",
-    "telrobot-init",
-    "telrobot-number",
-    "telrobot-task"
+    "skills/"
   ],
   "scripts": {
-    "test": "node --test && go test ./..."
+    "test": "go test ./...",
+    "test:go": "go test ./...",
+    "build": "cd cmd/telrobot-cli && go build -o ../../bin/telrobot-cli .",
+    "setup": "node skills/telrobot-init/scripts/setup.js"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "keywords": [
+    "telrobot",
+    "cli",
+    "agent-skills",
+    "task-management",
+    "number-management",
+    "voice-robot",
+    "outbound-calls"
+  ]
 }

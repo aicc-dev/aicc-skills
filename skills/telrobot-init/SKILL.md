@@ -73,12 +73,12 @@ Token         ❌ 未配置
 1. 当 setup 脚本执行成功且 Token 未配置时，**必须**在对话中输出上述引导文本
 2. **禁止**修改引导文本的措辞，必须使用精确的原文
 3. **禁止**在引导文本前后添加额外的解释或说明（保持简洁）
-4. 用户回复 Token 后，执行：`telrobot-cli config set-token <用户提供的token>`
-5. Token 配置成功后，**必须自动验证 Token 有效性**：
-   - 执行：`telrobot-cli task list --page 1 --size 5`
-   - 如果成功：展示查询到的任务列表信息（任务名称、ID、状态等）
+4. 用户回复 Token 后，**Agent 自动执行**：`telrobot-cli config set-token <用户提供的token>`（用户无需手动执行）
+5. Token 配置成功后，**Agent 必须自动验证 Token 有效性**：
+   - **Agent 自动执行**：`telrobot-cli task list --page 1 --size 5`（用户无需手动执行）
+   - 如果成功：Agent 用自然语言总结查询结果（如"我找到了 3 个任务，分别是..."）
    - 如果失败（认证错误/Token 无效）：引导用户重新生成并提供最新 Token
-6. 验证成功后输出：`✅ Token 已验证，可以开始使用命令`
+6. 验证成功后，Agent 用自然语言告知用户（如"✅ Token 已验证，现在可以帮我管理任务了"）
 
 **Token 验证失败引导文本**：
 
@@ -106,26 +106,27 @@ Token         ❌ 未配置
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-[Agent 执行]
+[Agent 自动执行配置和验证，用户无需手动操作]
 telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-[Agent 验证 Token]
 telrobot-cli task list --page 1 --size 5
 
-✅ 验证成功，查询到 3 个任务：
+[Agent 用自然语言总结结果]
+✅ 验证成功！我找到了 3 个任务：
 
-序号  任务ID        任务名称      状态    类型    并发量  创建时间
-1     abc-123...   营销外呼任务   开启    呼出    10      2024-01-15
-2     def-456...   客服回访       关闭    呼入    5       2024-01-14
-3     ghi-789...   调研问卷       开启    呼出    8       2024-01-13
+1. 营销外呼任务（abc-123...）- 运行中，10 并发
+2. 客服回访（def-456...）- 已暂停，5 并发
+3. 调研问卷（ghi-789...）- 运行中，8 并发
 
-✅ Token 已验证，可以开始使用命令
+✅ Token 已验证，现在可以帮我管理任务了！比如你可以说：
+- "查看今天的拨打情况"
+- "启动营销外呼任务"
+
 
 ---
 
 [验证失败场景]
 
-[Agent 执行]
+[Agent 自动执行，用户无需手动操作]
 telrobot-cli config set-token invalid-token...
 telrobot-cli task list --page 1 --size 5
 
@@ -142,31 +143,37 @@ telrobot-cli task list --page 1 --size 5
 [用户提供新 Token]
 [new-valid-token]
 
-[Agent 重新执行验证流程]
+[Agent 自动重新执行验证流程]
 telrobot-cli config set-token new-valid-token...
 telrobot-cli task list --page 1 --size 5
 
-✅ 验证成功...
+[Agent 用自然语言总结]
+✅ 验证成功！现在可以开始使用了...
 ```
 
 ## Behavior
 
 ### 自动初始化流程（CLI 触发）
 
-当用户首次执行 `telrobot-cli` 命令时，CLI 会自动检测环境并执行初始化：
+当用户首次使用 Agent 管理任务时，Agent 会自动检测环境并执行初始化：
 
-1. CLI 检测到环境未初始化
-2. 自动查找并执行 `scripts/setup.js` 或 `scripts/setup.sh`
+1. Agent 检测到环境未初始化
+2. **Agent 自动执行**：查找并执行 `scripts/setup.js` 或 `scripts/setup.sh`（用户无需手动操作）
 3. 下载 CLI 二进制 + 生成基础配置（Token 留空）
 4. CLI 输出提示信息后退出
-5. **Agent 必须在对话中输出**：`请提供云蝠系统内配置AI助理下生成的token信息`
+5. **Agent 在对话中输出**：`请提供云蝠系统内配置AI助理下生成的token信息`
 6. 等待用户提供 Token
-7. 用户回复后，Agent 执行：`telrobot-cli config set-token <token>`
-8. **自动验证 Token 有效性**：
-   - 执行 `telrobot-cli task list --page 1 --size 5`
-   - 成功：展示任务列表 + 输出 `✅ Token 已验证，可以开始使用命令`
-   - 失败：输出 Token 验证失败引导文本，等待用户提供新 Token
-9. 验证成功后，重新执行用户的原始命令（如 `telrobot-cli task list`）
+7. 用户回复后，**Agent 自动执行**：`telrobot-cli config set-token <token>`
+8. **Agent 自动验证 Token 有效性**：
+   - **Agent 自动执行** `telrobot-cli task list --page 1 --size 5`
+   - 成功：Agent 用自然语言总结任务列表 + 输出确认信息
+   - 失败：Agent 输出 Token 验证失败引导文本，等待用户提供新 Token
+9. 验证成功后，**Agent 自动完成用户的原始请求**（如用户说"查看任务"，Agent 自动查询并用自然语言回答）
+
+**重要原则**：
+- 用户只需用自然语言描述需求（如"查看当前账户下的呼叫任务"）
+- Agent 负责自动执行 CLI 命令并理解结果
+- Agent 用自然语言回答用户，**不要让用户手动执行 CLI 命令**
 
 ### 手动初始化流程（Agent 主动触发）
 
@@ -270,14 +277,54 @@ $env:TELROBOT_TOKEN="your-token"; powershell -ExecutionPolicy Bypass -File .\scr
 telrobot-cli config set-token your-token
 ```
 
+## Agent 使用原则（CRITICAL）
+
+**核心原则**：用户使用自然语言描述需求，Agent 自动执行 CLI 命令并理解结果。
+
+**正确示例**：
+```
+用户说："查看当前账户下的呼叫任务"
+✅ Agent 自动执行：telrobot-cli task list
+✅ Agent 用自然语言回答："我找到了 5 个任务，分别是..."
+
+用户说："今天的拨打情况怎么样"
+✅ Agent 自动执行：telrobot-cli task stat <task-id> --type over_all --date "2024-01-15"
+✅ Agent 用自然语言回答："今天共拨打 150 通，接通率 65%..."
+
+用户说："启动营销外呼任务"
+✅ Agent 自动执行：telrobot-cli task start <task-uuid>
+✅ Agent 用自然语言回答："✅ 营销外呼任务已启动"
+```
+
+**错误示例**：
+```
+用户说："查看当前账户下的呼叫任务"
+❌ Agent 回答："请执行 telrobot-cli task list 查看任务"
+❌ Agent 回答："你可以用 task list 命令查询"
+```
+
+**约束**：
+1. Agent **必须自动执行** CLI 命令，不得要求用户手动执行
+2. Agent **必须用自然语言总结**命令结果，不得直接输出原始表格
+3. Agent **禁止展示** CLI 命令语法给用户（除非用户明确要求）
+4. 仅在 Token 配置引导时，可以输出固定的引导文本
+
 ## Usage Example
 
-After initialization, agents can directly use the `telrobot-cli` command:
+初始化完成后，用户只需用自然语言描述需求，Agent 会自动处理：
 
-```bash
-# List tasks
-telrobot-cli task list
-
-# Get task statistics
-telrobot-cli task stat <task-id> --type call
 ```
+用户："查看当前账户下的呼叫任务"
+→ Agent 自动查询并用自然语言回答
+
+用户："今天的拨打情况总结"
+→ Agent 自动查询统计并用自然语言回答
+
+用户："有哪些 A 级意向客户"
+→ Agent 自动查询客户列表并用自然语言回答
+
+用户："启动营销外呼任务"
+→ Agent 自动启动任务并确认
+```
+
+**Agent 不应要求用户手动执行 CLI 命令，而是自动执行并理解结果。**

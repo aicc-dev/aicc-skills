@@ -69,6 +69,34 @@ This skill provides comprehensive number (contact) management for Telrobot CLI. 
 3. **禁止尝试**任何形式的 HTTP 降级或绕过
 4. **禁止修改**命令参数重新尝试，除非用户明确要求
 
+### 文件导入特殊约束（IMPORT-FILE SPECIFIC）
+
+当处理号码文件导入时，**额外遵守以下规则**：
+
+1. **禁止读取文件内容**：Agent **严禁**使用 `cat`、`read`、`head` 或任何工具读取号码文件内容
+2. **禁止解析 Excel**：Agent **严禁**尝试解析 `.xlsx`/`.xls` 文件的内部结构或单元格内容
+3. **禁止转换格式**：Agent **严禁**将 Excel 文件转换为 `.txt` 或 `.csv` 格式后再导入
+4. **禁止数据提取**：Agent **严禁**从文件中提取号码、姓名等信息，必须交由 CLI 处理
+5. **直接传递路径**：Agent 收到文件路径后，**必须直接**调用 `telrobot-cli number import-file <任务ID> <文件路径>`
+6. **信任 CLI 能力**：CLI 内置完整的文件解析能力（支持旧模板、智能表头检测、多列名识别），无需 Agent 预处理
+
+**正确流程**：
+```
+用户提供: /path/to/numbers.xlsx
+    ↓
+Agent 直接调用: telrobot-cli number import-file <任务ID> /path/to/numbers.xlsx
+    ↓
+Agent 展示 CLI 输出的进度和结果
+```
+
+**错误流程**：
+```
+❌ Agent 读取文件: cat /path/to/numbers.xlsx
+❌ Agent 尝试解析: 使用 Python/Node.js 解析 Excel
+❌ Agent 转换格式: 将 Excel 转为 CSV 再导入
+❌ Agent 提取数据: 从文件中提取号码列表，改用 batch-add
+```
+
 ---
 
 ## Configuration
@@ -162,6 +190,8 @@ telrobot-cli number batch-add <任务ID> "号码1,号码2,号码3" [--to-crm]
 
 ### Import Numbers From File（文件导入号码）
 
+> ⚠️ **Agent 强约束**：当用户提供文件路径时，**严禁读取/解析/转换文件内容**，必须直接将路径传给 CLI。CLI 内置完整的文件解析能力（Excel/CSV/TXT），支持旧模板自动兼容。详见上方「文件导入特殊约束」章节。
+
 当用户输入“导入号码”“从文件导入号码”“上传号码文件”等意图时，按以下流程执行。
 
 #### 1. 确认导入任务
@@ -180,9 +210,18 @@ telrobot-cli task list
 
 提示用户提供号码文件路径，支持：
 
+- `.xlsx/.xls/.excel`：**首选格式**，由 CLI 内置 Excel 解析能力处理。兼容以下格式：
+  - **旧模板格式**：第1行=说明/描述行，第2行=表头行（如 `号码`/`姓名`/`公司`），第3行起=数据行。CLI 会智能检测表头位置，自动跳过说明行
+  - **新格式**：第1行=表头行，第2行起=数据行
+  - **无表头格式**：纯号码列，每行一个号码
+  - 旧模板中的额外列（如 `task_name`、`sex`、`email`、`custom_variables`、`control_select_robot` 等 CRM 字段）会被安全忽略，仅提取号码、姓名、公司
+  - 号码列识别表头：`phone`、`mobile`、`number`、`号码`、`手机号`、`联系电话`、`手机`、`联系方式` 等
+  - 姓名列识别表头：`name`、`姓名`、`联系人`、`客户名称` 等
+  - 公司列识别表头：`company`、`公司`、`公司名称`、`所属公司` 等
+- `.csv`：包含 `phone`、`mobile`、`number`、`号码`、`手机号` 等表头；可附带 `name`、`company`
 - `.txt`：每行一个号码，或用逗号、空格、分号分隔
-- `.csv`：推荐包含 `phone`、`mobile`、`number`、`号码`、`手机号` 等表头；可附带 `name`、`company`
-- `.excel/.xlsx/.xls`：由 CLI 内置 Excel 解析能力处理
+
+**重要提示**：当用户提供 Excel 文件时，Agent **必须直接将文件路径传给 CLI**，不要尝试自行读取或解析 Excel 内容。CLI 的 `import-file` 命令内置了完整的 Excel 解析能力，包括旧模板兼容。
 
 #### 3. 调用 CLI 导入文件
 
@@ -196,6 +235,28 @@ telrobot-cli number import-file <任务ID> <用户号码文件> \
 ```
 
 **CRM 导入说明**：当 `--to-crm=true`（默认开启）时，CLI 会将文件中解析出的 **姓名（name）**、**公司（company）** 和额外列数据一并传给服务端，CRM 客户将使用文件中的真实姓名而非自动生成的占位名。
+
+**Excel 文件处理说明**：
+- CLI 内置 Excel 解析，支持 `.xlsx`、`.xls` 格式
+- 自动智能检测表头行位置（兼容旧模板第1行说明+第2行表头的格式）
+- 仅提取 **号码（必填）**、**姓名（可选）**、**公司（可选）**，其余列安全忽略
+- 用户使用旧版号码导入模板时，无需任何额外操作，CLI 会自动跳过模板说明行
+- Agent **严禁**自行读取/解析 Excel 文件内容，必须将文件路径直接传给 CLI
+
+**常见错误示例**（Agent 严禁执行以下操作）：
+```bash
+# ❌ 错误1: 尝试读取文件内容
+$ cat /path/to/numbers.xlsx  # Agent 不要这样做
+
+# ❌ 错误2: 尝试转换格式
+$ python -c "import pandas; df.to_csv('numbers.csv')"  # Agent 不要这样做
+
+# ❌ 错误3: 从文件中提取号码，改用 batch-add
+$ telrobot-cli number batch-add <任务ID> "13800138000,13900139000"  # Agent 不要这样做
+
+# ✅ 正确: 直接传递路径给 CLI
+$ telrobot-cli number import-file <任务ID> /path/to/numbers.xlsx  # Agent 应该这样做
+```
 
 CLI 会生成 origin 文件，文件名格式：
 
@@ -367,8 +428,10 @@ telrobot-cli number batch-delete <任务ID> "号码1,号码2,号码3" [--to-crm]
 ## Error Handling
 
 | 错误信息 | 原因 | 解决方案 |
-|---------|------|---------|
+|---------|------|----------|
 | 号码格式错误 | 号码不是合法整数 | 检查号码格式，确保为纯数字 |
 | 获取号码列表失败 | 任务ID不存在或无权限 | 先执行 `task list` 确认任务ID |
 | 401 Unauthorized | Token 无效 | 执行 `config set-token` 更新 Token |
 | 未找到匹配的号码 | 搜索关键词无匹配 | 尝试不同关键词或执行 `number list` 浏览 |
+| 不支持的文件格式 | 文件扩展名不在 .txt/.csv/.xlsx/.xls/.excel 中 | 转换文件为支持的格式后重试 |
+| 没有解析到有效号码 | Excel 中无有效号码或表头无法识别 | 检查号码列是否包含 `phone`/`number`/`号码` 等表头，或确认号码列有数据 |

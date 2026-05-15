@@ -9,13 +9,27 @@ description: Initialize Telrobot CLI environment by downloading platform-specifi
 
 **用户不需要知道此 Skill 的存在**，也不需要手动调用 `@skill:telrobot-init`。
 
-## 使用场景
+## 触发时机（CRITICAL）
 
-- 当用户**用自然语言描述需求**（如"查看任务"、"导入号码"）时，Agent 自动检测环境，如果未初始化则自动调用此 Skill
-- 当用户需要配置或验证 Token 时，Agent 自动调用此 Skill
-- 当 CLI 二进制文件缺失或损坏时，Agent 自动调用此 Skill 修复
+### 场景 1：Skill 安装后立即初始化（推荐）
 
-**注意**：安装 Skill 后不会立即自动初始化，只有当用户**首次使用**相关功能时才会触发初始化流程。
+**当用户安装此 Skill 或相关 Skill（telrobot-task/telrobot-number）后，Agent 必须立即执行环境初始化**：
+
+1. **Agent 自动检测**：检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
+2. **如果缺失**：Agent 立即执行 `node scripts/setup.js`（或 `sh scripts/setup.sh`）
+3. **初始化完成后**：Agent 检查 Token 配置状态
+4. **如果 Token 未配置**：Agent 输出引导文本，等待用户提供 Token
+5. **如果 Token 已配置**：Agent 自动验证 Token 有效性
+
+**重要**：不要等待用户输入需求才初始化，**安装 Skill 后立即执行**。
+
+### 场景 2：用户首次使用功能时初始化（兜底）
+
+如果场景 1 未触发（如 Agent 未检测到 Skill 安装），当用户**用自然语言描述需求**（如"查看任务"、"导入号码"）时，Agent 自动检测环境并执行初始化。
+
+### 场景 3：环境损坏时自动修复
+
+当 CLI 二进制文件缺失或损坏时，Agent 自动调用此 Skill 修复环境。
 
 ## 🚫 严格安全限制（MUST OBEY）
 
@@ -206,27 +220,73 @@ telrobot-cli task list --page 1 --size 5
 
 ## Behavior
 
-### 自动初始化流程（CLI 触发）
+### 自动初始化流程（CRITICAL）
 
-当用户首次使用 Agent 管理任务时，Agent 会自动检测环境并执行初始化：
+### 流程 A：Skill 安装后立即初始化（推荐）
 
-1. Agent 检测到环境未初始化
-2. **Agent 自动执行**：查找并执行 `scripts/setup.js` 或 `scripts/setup.sh`（用户无需手动操作）
-3. 下载 CLI 二进制 + 生成基础配置（Token 留空）
-4. CLI 输出提示信息后退出
-5. **Agent 在对话中输出**：`请提供云蝠系统内配置AI助理下生成的token信息`
-6. 等待用户提供 Token
-7. 用户回复后，**Agent 自动执行**：`telrobot-cli config set-token <token>`
-8. **Agent 自动验证 Token 有效性**：
-   - **Agent 自动执行** `telrobot-cli task list --page 1 --size 5`
-   - 成功：Agent 用自然语言总结任务列表 + 输出确认信息
-   - 失败：Agent 输出 Token 验证失败引导文本，等待用户提供新 Token
-9. 验证成功后，**Agent 自动完成用户的原始请求**（如用户说"查看任务"，Agent 自动查询并用自然语言回答）
+**触发时机**：用户安装 `telrobot-init`/`telrobot-task`/`telrobot-number` Skill 后
 
-**重要原则**：
-- 用户只需用自然语言描述需求（如"查看当前账户下的呼叫任务"）
-- Agent 负责自动执行 CLI 命令并理解结果
-- Agent 用自然语言回答用户，**不要让用户手动执行 CLI 命令**
+**执行步骤**：
+1. **Agent 自动检测环境**：
+   ```bash
+   # 检查 CLI 是否存在
+   test -f ~/.telrobot-cli/bin/telrobot-cli && echo "EXISTS" || echo "MISSING"
+   ```
+2. **如果 CLI 缺失**：Agent 立即执行初始化
+   ```bash
+   # 优先使用 Node.js 版本
+   node scripts/setup.js
+   # 或降级到 Shell 版本
+   sh scripts/setup.sh
+   ```
+3. **初始化完成后**：Agent 检查 Token 配置
+   ```bash
+   # 检查 config.yaml 中是否有 token
+   grep -q "token:" ~/.telrobot-cli/config.yaml 2>/dev/null && echo "CONFIGURED" || echo "MISSING"
+   ```
+4. **Token 未配置**：Agent 输出引导文本
+   ```
+   请提供云蝠系统内配置AI助理下生成的token信息
+   ```
+5. **用户提供 Token 后**：Agent 自动配置并验证
+   ```bash
+   telrobot-cli config set-token <用户提供的token>
+   telrobot-cli task list --page 1 --size 5  # 验证 Token
+   ```
+6. **验证成功**：Agent 通知用户环境已就绪
+   ```
+   ✅ Telrobot CLI 环境已就绪，可以开始使用了！
+   
+   你可以告诉我：
+   - "查看当前账户下的呼叫任务"
+   - "导入一批号码到营销任务"
+   - "今天的拨打情况总结"
+   ```
+
+### 流程 B：用户首次使用时初始化（兜底）
+
+**触发时机**：用户用自然语言描述需求（如"查看任务"），但环境未初始化
+
+**执行步骤**：与流程 A 相同，但在初始化完成后，**继续执行用户的原始请求**。
+
+**示例**：
+```
+用户说："查看当前账户下的呼叫任务"
+    ↓
+Agent 检测环境未初始化
+    ↓
+Agent 执行 setup 脚本
+    ↓
+Agent 提示："请提供云蝠系统内配置AI助理下生成的token信息"
+    ↓
+用户提供 Token
+    ↓
+Agent 配置并验证 Token
+    ↓
+Agent 继续执行用户原始请求：telrobot-cli task list
+    ↓
+Agent 用自然语言回答："我找到了 3 个任务..."
+```
 
 ### 手动初始化流程（Agent 主动触发）
 
@@ -332,9 +392,89 @@ telrobot-cli config set-token your-token
 
 ## Agent 使用原则（CRITICAL）
 
-**核心原则**：用户使用自然语言描述需求，Agent 自动执行 CLI 命令并理解结果。
+**核心原则**：
+1. **Skill 安装后立即初始化环境**，不要等待用户输入需求
+2. 用户使用自然语言描述需求，Agent 自动执行 CLI 命令并理解结果
+3. **禁止要求用户手动执行 CLI 命令**（除 Token 配置引导外）
 
-**正确示例**：
+### 完整交互流程示例
+
+#### 场景 1：Skill 安装后立即初始化
+
+```
+[用户安装 telrobot-number Skill]
+    ↓
+[Agent 自动检测环境]
+test -f ~/.telrobot-cli/bin/telrobot-cli && echo "EXISTS" || echo "MISSING"
+    ↓
+[输出: MISSING]
+    ↓
+[Agent 自动执行初始化]
+node scripts/setup.js
+    ↓
+[输出]
+✅ Installed Telrobot CLI: ~/.telrobot-cli/bin/telrobot-cli
+📝 Wrote config: ~/.telrobot-cli/config.yaml
+
+⚠️  Token 未配置，请执行以下命令：
+   telrobot-cli config set-token <your-token>
+    ↓
+[Agent 在对话中输出]
+请提供云蝠系统内配置AI助理下生成的token信息
+    ↓
+[用户提供 Token]
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ↓
+[Agent 自动配置并验证]
+telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+telrobot-cli task list --page 1 --size 5
+    ↓
+[验证成功]
+✅ Telrobot CLI 环境已就绪，可以开始使用了！
+
+你可以告诉我：
+- "查看当前账户下的呼叫任务"
+- "导入一批号码到营销任务"
+- "今天的拨打情况总结"
+```
+
+#### 场景 2：用户首次使用时初始化
+
+```
+用户说："查看当前账户下的呼叫任务"
+    ↓
+[Agent 自动检测环境]
+test -f ~/.telrobot-cli/bin/telrobot-cli && echo "EXISTS" || echo "MISSING"
+    ↓
+[输出: MISSING]
+    ↓
+[Agent 自动执行初始化]
+node scripts/setup.js
+    ↓
+[Agent 在对话中输出]
+请提供云蝠系统内配置AI助理下生成的token信息
+    ↓
+[用户提供 Token]
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    ↓
+[Agent 自动配置并验证]
+telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+telrobot-cli task list --page 1 --size 5
+    ↓
+[验证成功，继续执行用户原始请求]
+telrobot-cli task list --page 1 --size 20
+    ↓
+[Agent 用自然语言回答]
+✅ 我找到了 5 个任务：
+
+1. 营销外呼任务（abc-123...）- 运行中，10 并发
+2. 客服回访（def-456...）- 已暂停，5 并发
+...
+```
+
+### 正确示例 vs 错误示例
+
+**✅ 正确示例**：
 ```
 用户说："查看当前账户下的呼叫任务"
 ✅ Agent 自动执行：telrobot-cli task list
@@ -349,20 +489,48 @@ telrobot-cli config set-token your-token
 ✅ Agent 用自然语言回答："✅ 营销外呼任务已启动"
 ```
 
-**错误示例**：
+**❌ 错误示例**：
 ```
 用户说："查看当前账户下的呼叫任务"
 ❌ Agent 回答："请执行 telrobot-cli task list 查看任务"
 ❌ Agent 回答："你可以用 task list 命令查询"
+
+用户安装 Skill 后
+❌ Agent 等待用户输入需求才初始化
+❌ Agent 要求用户手动执行 setup 脚本
 ```
 
 **约束**：
-1. Agent **必须自动执行** CLI 命令，不得要求用户手动执行
-2. Agent **必须用自然语言总结**命令结果，不得直接输出原始表格
-3. Agent **禁止展示** CLI 命令语法给用户（除非用户明确要求）
-4. 仅在 Token 配置引导时，可以输出固定的引导文本
+1. **Skill 安装后必须立即初始化环境**，不得等待用户输入需求
+2. Agent **必须自动执行** CLI 命令，不得要求用户手动执行
+3. Agent **必须用自然语言总结**命令结果，不得直接输出原始表格
+4. Agent **禁止展示** CLI 命令语法给用户（除非用户明确要求）
+5. 仅在 Token 配置引导时，可以输出固定的引导文本
+6. Token 验证成功后，Agent 应通知用户环境已就绪，并提示可以使用哪些功能
 
 ## Usage Example
+
+### 场景 1：Skill 安装后立即初始化
+
+```
+[用户安装 telrobot-number Skill]
+    ↓
+[Agent 自动初始化环境 + 提示 Token]
+请提供云蝠系统内配置AI助理下生成的token信息
+    ↓
+[用户提供 Token]
+xxx-token-xxx
+    ↓
+[Agent 配置并验证成功]
+✅ Telrobot CLI 环境已就绪，可以开始使用了！
+
+你可以告诉我：
+- "查看当前账户下的呼叫任务"
+- "导入一批号码到营销任务"
+- "今天的拨打情况总结"
+```
+
+### 场景 2：用户首次使用时初始化
 
 初始化完成后，用户只需用自然语言描述需求，Agent 会自动处理：
 

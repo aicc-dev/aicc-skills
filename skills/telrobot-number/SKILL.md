@@ -1,6 +1,6 @@
 ---
 name: telrobot:number
-description: Use this skill for Telrobot CLI number management operations including listing, searching, adding, updating, deleting, batch importing, batch resetting, and batch deleting numbers within a task.
+description: Use this skill for Telrobot CLI number management operations including listing, searching, adding, updating, deleting, batch importing (Excel/CSV/TXT supported with old template compatibility), batch resetting, and batch deleting numbers within a task. Automatically initializes CLI environment on first use.
 ---
 
 # Telrobot Number
@@ -9,7 +9,7 @@ This skill provides comprehensive number (contact) management for Telrobot CLI. 
 
 ## 🚀 安装后使用方式（CRITICAL）
 
-**安装此 Skill 后，用户不需要执行任何初始化命令，也不需要调用 `@skill:xxx`。**
+**安装此 Skill 后，Agent 应立即检查 CLI 环境是否已初始化**。如果未初始化，自动执行环境初始化流程。
 
 **正确用法**：直接描述你的需求，Agent 会自动处理一切：
 ```
@@ -27,6 +27,14 @@ This skill provides comprehensive number (contact) management for Telrobot CLI. 
 ❌ 用户："@skill:telrobot-init"
 ❌ 用户："帮我初始化 telrobot"
 ❌ 用户："执行 setup.js"
+```
+
+**安装后立即触发**：如果用户安装完 Skill 后没有输入任何内容，Agent 应主动检查环境并引导初始化：
+```
+Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
+ → 不存在：自动执行 setup 脚本
+ → 存在但无 Token：提示用户提供 Token
+ → 环境就绪：告知用户可以开始使用
 ```
 
 ## ⚠️ 前置环境检查（MUST CHECK）

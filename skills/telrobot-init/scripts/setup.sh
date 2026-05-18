@@ -38,7 +38,7 @@ telrobot_home="${TELROBOT_HOME:-"$HOME/.telrobot-cli"}"
 bin_dir="${TELROBOT_BIN_DIR:-"$telrobot_home/bin"}"
 destination="${bin_dir}/telrobot-cli"
 config_path="${TELROBOT_CONFIG_PATH:-"$telrobot_home/config.yaml"}"
-api_url="${TELROBOT_API_URL:-"https://internal-saas.telrobot.top/cli/"}"
+api_url="${TELROBOT_API_URL:-"https://ai.telrobot.top/cli/"}"
 
 write_config() {
   mkdir -p "$(dirname "$config_path")"

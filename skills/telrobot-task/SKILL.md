@@ -1,4 +1,4 @@
-----
+---
 name: telrobot:task
 description: Use this skill for Telrobot CLI task management operations including listing tasks, starting/stopping tasks, viewing call statistics summaries, and querying customers by intention. Automatically initializes CLI environment on first use.
 ---
@@ -104,8 +104,6 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 ```
 
 ---
-
-## Task Management Commands
 
 ## Configuration
 
@@ -284,8 +282,6 @@ telrobot-cli task list --name <关键词>
 
 **User triggers**: "搜索任务", "查找任务", "找一下任务，查看任务"
 
-### 2. 开启某个任务（task start）
-
 ### Start Task
 
 ```bash
@@ -378,8 +374,6 @@ telrobot-cli task list-lines
 **User triggers**: "配置线路", "设置外呼线路", "给任务配线路", "任务没有线路"
 
 
-### 3. 暂停某个任务（task stop）
-
 ### Stop Task
 
 ```bash
@@ -425,7 +419,7 @@ telrobot-cli task stop [任务ID或名称]
 **User triggers**: "停止任务", "暂停任务", "关闭任务"
 ---
 
-### 4. 对某个任务的拨打情况进行总结归纳（task stat）
+### Task Statistics（task stat）
 
 > **⚠️ 关键区分**：此命令返回**统计数据和报表**（数字、比率、分布）。如需查询**具体客户联系方式**（公司、联系人、手机号），请使用 `task customers-by-intention`。
 
@@ -496,7 +490,7 @@ telrobot-cli task stat <任务ID> --type answer_rate --date "2024-05-01,2024-05-
 
 ---
 
-### 5. 对某个任务的某类意向客户进行获取（task customers-by-intention）
+### Customers by Intention
 
 > **⚠️ 关键区分**：此命令返回**具体客户详情**（公司名、联系人姓名、手机号码）。如需查看**意向分布统计数字**（A级X个、B级Y个），请使用 `task stat --type intention`。
 
@@ -519,7 +513,7 @@ telrobot-cli task customers-by-intention [--output <格式>]
 |------|------|--------|--------|----------|----------|----------|
 
 
-### 6. Activate Task
+### Activate Task
 
 ```bash
 telrobot-cli task activate [任务ID或名称]

@@ -165,7 +165,19 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词] [--active N] [--
    - **严禁**只输出共N个任务等摘要而不展示完整列表
    - **严禁**只显示 UUID 而不显示任务名称（任务名称是最重要的字段）
 
-3. **输出格式要求**：
+3. **终端编码乱码处理（IMPORTANT）**：
+
+   如果 Agent 发现 CLI 终端输出中**中文字段出现乱码**或**无法正确解析表格格式**，**必须**改用 JSON 输出模式：
+
+   ```bash
+   telrobot-cli task list --output json
+   telrobot-cli task list --name "营销" --output json
+   ```
+
+   - JSON 输出包含完整的结构化数据，Agent 可以直接解析所有字段（包括任务名称）
+   - 解析 JSON 后，Agent 必须以表格形式完整展示给用户，不得遗漏任何字段
+
+4. **输出格式要求**：
 
    ```
    ✅ 正确示例（原样转述 CLI 输出）：
@@ -200,6 +212,10 @@ telrobot-cli task list
 
 # 按名称搜索（自动获取全部结果）
 telrobot-cli task list --name "营销"
+
+# 终端编码乱码时使用 JSON 输出（Agent 自动解析）
+telrobot-cli task list --output json
+telrobot-cli task list --name "营销" --output json
 
 # 查看已激活的任务（自动获取全部结果）
 telrobot-cli task list --active 1

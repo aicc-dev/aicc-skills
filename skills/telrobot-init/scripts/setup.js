@@ -114,7 +114,7 @@ async function smartInit(options = {}) {
   const binDir = getBinDir(telrobotHome);
   const destination = getDestination(assetName, binDir);
   const configPath = getConfigPath(telrobotHome);
-  // const apiUrl = process.env.TELROBOT_API_URL;
+  const apiUrl = process.env.TELROBOT_API_URL;
   const token = process.env.TELROBOT_TOKEN;
 
   // 检查环境状态

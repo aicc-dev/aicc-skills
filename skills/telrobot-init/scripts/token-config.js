@@ -20,11 +20,8 @@ function getExecutablePath() {
 }
 
 function updateConfig(configPath, executablePath, token) {
-  // 写入 YAML 格式配置（CLI 实际读取的格式）
+  // 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
   const configLines = [
-    'server:',
-    '  baseURL: https://ai.telrobot.top/cli/',
-    '  apiVersion: v1',
     'auth:',
     `  token: ${token}`,
     'output:',

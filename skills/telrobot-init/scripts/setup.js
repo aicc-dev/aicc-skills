@@ -78,14 +78,11 @@ function getConfigPath(telrobotHome) {
   return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.yaml");
 }
 
-function writeConfig(configPath, executablePath, apiUrl, token) {
+function writeConfig(configPath, executablePath, token) {
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
 
-  // 写入 YAML 格式配置（CLI 实际读取的格式）
+  // 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
   const configLines = [
-    'server:',
-    `  baseURL: ${apiUrl || 'https://ai.telrobot.top/cli/'}`,
-    '  apiVersion: v1',
     'auth:',
     `  token: ${token || ''}`,
     'output:',
@@ -117,7 +114,7 @@ async function smartInit(options = {}) {
   const binDir = getBinDir(telrobotHome);
   const destination = getDestination(assetName, binDir);
   const configPath = getConfigPath(telrobotHome);
-  const apiUrl = process.env.TELROBOT_API_URL;
+  // const apiUrl = process.env.TELROBOT_API_URL;
   const token = process.env.TELROBOT_TOKEN;
 
   // 检查环境状态
@@ -139,7 +136,7 @@ async function smartInit(options = {}) {
 
   if (!status.configExists) {
     console.log("📝 正在生成配置文件...");
-    writeConfig(configPath, destination, apiUrl, token || '');
+    writeConfig(configPath, destination, token || '');
     console.log(`📝 已创建配置文件: ${configPath}`);
   } else {
     console.log("✅ 配置文件已存在，跳过创建");
@@ -217,7 +214,6 @@ async function main() {
   const binDir = getBinDir(telrobotHome);
   const destination = getDestination(assetName, binDir);
   const configPath = getConfigPath(telrobotHome);
-  const apiUrl = process.env.TELROBOT_API_URL;
   const token = process.env.TELROBOT_TOKEN;
 
   if (isDryRun) {
@@ -234,7 +230,7 @@ async function main() {
   console.log(`🔗 URL: ${url}`);
 
   await download(url, destination);
-  writeConfig(configPath, destination, apiUrl, token);
+  writeConfig(configPath, destination, token);
 
   console.log(`✅ Installed Telrobot CLI: ${destination}`);
   console.log(`📝 Wrote config: ${configPath}`);

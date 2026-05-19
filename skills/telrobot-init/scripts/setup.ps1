@@ -30,7 +30,6 @@ $baseUrl = if ($env:TELROBOT_DOWNLOAD_BASE_URL) {
 }
 $url = "${baseUrl}/${assetName}"
 
-$apiUrl = if ($env:TELROBOT_API_URL) { $env:TELROBOT_API_URL } else { "https://ai.telrobot.top/cli/" }
 $token  = $env:TELROBOT_TOKEN
 
 # ── Dry-run 模式 ─────────────────────────────────────────────────
@@ -60,11 +59,8 @@ try {
 # ── 写入配置 ─────────────────────────────────────────────────────
 New-Item -ItemType Directory -Force -Path (Split-Path $configPath) | Out-Null
 
-# 写入 YAML 格式配置（CLI 实际读取的格式）
+# 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
 $configContent = @"
-server:
-  baseURL: $apiUrl
-  apiVersion: v1
 auth:
   token: $token
 output:

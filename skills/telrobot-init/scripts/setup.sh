@@ -38,16 +38,12 @@ telrobot_home="${TELROBOT_HOME:-"$HOME/.telrobot-cli"}"
 bin_dir="${TELROBOT_BIN_DIR:-"$telrobot_home/bin"}"
 destination="${bin_dir}/telrobot-cli"
 config_path="${TELROBOT_CONFIG_PATH:-"$telrobot_home/config.yaml"}"
-api_url="${TELROBOT_API_URL:-"https://ai.telrobot.top/cli/"}"
 
 write_config() {
   mkdir -p "$(dirname "$config_path")"
 
-  # 写入 YAML 格式配置（CLI 实际读取的格式）
+  # 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
   cat > "$config_path" <<EOF
-server:
-  baseURL: ${api_url}
-  apiVersion: v1
 auth:
   token: ${TELROBOT_TOKEN:-}
 output:

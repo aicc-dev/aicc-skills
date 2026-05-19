@@ -270,7 +270,7 @@ Agent：读取配置 → 执行 CLI 命令 → 返回结果
 **结构**:
 ```yaml
 server:
-  baseURL:  https://ai.telrobot.top/cli/
+  baseURL:  https://internal-saas.telrobot.top/cli/
   apiVersion: v1
 auth:
   token: user-token-here

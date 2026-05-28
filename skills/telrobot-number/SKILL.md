@@ -1,6 +1,6 @@
 ---
 name: telrobot:number
-description: Use this skill for Telrobot CLI number management operations including listing, searching, adding, updating, deleting, batch importing (Excel/CSV/TXT supported with old template compatibility), batch resetting, and batch deleting numbers within a task. Automatically initializes CLI environment on first use.
+description: Use this skill for Telrobot CLI number management operations including listing, searching, adding, updating, deleting, batch importing (Excel/CSV/TXT supported with old template compatibility and --auto-convert intelligent column mapping), batch resetting, and batch deleting numbers within a task. Automatically initializes CLI environment on first use.
 ---
 
 # Telrobot Number
@@ -39,11 +39,25 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 
 ## ⚠️ 前置环境检查（MUST CHECK）
 
-**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境状态**：
+**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境和终端编码状态**：
 
+**第一步：检查 CLI 环境**（下列 3 项允许并行）：
 1. 检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
 2. 检查 `~/.telrobot-cli/config.yaml` 是否存在
 3. 检查配置中 Token 是否已配置
+
+**第二步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
+
+```bash
+echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
+```
+
+**根据检测结果，Agent 在本次会话内确定执行模式，后续所有命令统一使用该模式，不再重复检测**：
+
+| 检测结果 | 执行模式 | 命令示例 |
+|---|---|---|
+| 输出包含 `UTF-8` 或 `utf8` | ✅ **正常模式**：直接执行 | `telrobot-cli number list <任务ID>` |
+| 输出不包含上述内容 | ⚠️ **防乱码模式**：加 `env` 前缀 | `env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli number list <任务ID>` |
 
 **如果环境未初始化**（CLI 或配置缺失）：
 - **Agent 自动执行初始化**：使用 `telrobot-init` skill 的 `scripts/setup.js` 或 `scripts/setup.sh`
@@ -52,6 +66,22 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 - 等待用户提供 Token，然后自动配置并验证
 
 **用户无需手动调用 `@skill:telrobot-init`**，Agent 会自动处理环境初始化。
+
+## 🔤 防乱码模式说明
+
+防乱码模式下，所有命令统一使用 `env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` 前缀，**仅影响当前命令进程，不污染用户全局 shell 环境**。
+
+**防乱码模式执行后，Agent 必须主动检查输出是否包含乱码字符（如 `\xef\xbf\xbd`、`?`、无意义符号序列）**：
+- 输出正常 → 继续使用防乱码模式执行后续命令
+- 输出仍乱码 → **立即切换为 `--output json` 模式**，不得继续使用表格输出：
+
+```bash
+env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli number list <任务ID> --output json
+```
+
+Agent 拿到 JSON 数据后，**必须自行解析并以格式化表格展示给用户**，不得将原始 JSON 直接输出。
+
+如果三层均无法解决，提示用户可能是 IDE/终端面板本身的编码配置问题，建议检查终端字符集设置。
 
 ## 🚫 严格安全限制（MUST OBEY）
 
@@ -86,7 +116,7 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 3. **禁止转换格式**：Agent **严禁**将 Excel 文件转换为 `.txt` 或 `.csv` 格式后再导入
 4. **禁止数据提取**：Agent **严禁**从文件中提取号码、姓名等信息，必须交由 CLI 处理
 5. **直接传递路径**：Agent 收到文件路径后，**必须直接**调用 `telrobot-cli number import-file <任务ID> <文件路径>`
-6. **信任 CLI 能力**：CLI 内置完整的文件解析能力（支持旧模板、智能表头检测、多列名识别），无需 Agent 预处理
+6. **信任 CLI 能力**：CLI 内置完整的文件解析能力（支持旧模板、智能表头检测、多列名识别），以及 `--auto-convert`（默认开启）自动转换任意格式 Excel 为标准模板，无需 Agent 预处理
 
 **正确流程**：
 ```
@@ -219,36 +249,54 @@ telrobot-cli task list
 提示用户提供号码文件路径，支持：
 
 - `.xlsx/.xls/.excel`：**首选格式**，由 CLI 内置 Excel 解析能力处理。兼容以下格式：
-  - **旧模板格式**：第1行=说明/描述行，第2行=表头行（如 `号码`/`姓名`/`公司`），第3行起=数据行。CLI 会智能检测表头位置，自动跳过说明行
+  - **标准模板格式**：第1行=说明/描述行，第2行=表头行（如 `号码`/`姓名`/`公司`），第3行起=数据行
   - **新格式**：第1行=表头行，第2行起=数据行
+  - **任意格式（`--auto-convert` 默认开启）**：用户可以上传任意格式的Excel文件，CLI 会自动智能识别号码列、姓名列、公司列的位置，将其转换为标准模板格式后再导入
   - **无表头格式**：纯号码列，每行一个号码
-  - 旧模板中的额外列（如 `task_name`、`sex`、`email`、`custom_variables`、`control_select_robot` 等 CRM 字段）会被安全忽略，仅提取号码、姓名、公司
-  - 号码列识别表头：`phone`、`mobile`、`number`、`号码`、`手机号`、`联系电话`、`手机`、`联系方式` 等
-  - 姓名列识别表头：`name`、`姓名`、`联系人`、`客户名称` 等
-  - 公司列识别表头：`company`、`公司`、`公司名称`、`所属公司` 等
+  - 任意格式的额外列（如 `task_name`、`sex`、`email`、`custom_variables`、`control_select_robot` 等 CRM 字段）会被安全忽略，仅提取号码、姓名、公司
+  - 号码列识别规则：支持表头关键词（`phone`、`mobile`、`number`、`tel`、`号码`、`手机`、`电话`、`手机号`、`手机号码`、`电话号码`、`联系电话` 等）或数据内容特征（11位手机号、7-15位数字）；**注意**：`联系人`、`联系方式` 属于姓名/备注列，不会误匹配为号码列
+  - 姓名列识别规则：支持表头关键词（`name`、`姓名`、`联系人`、`客户名称` 等）或数据内容特征（中文姓名、英文姓名格式）
+  - 公司列识别规则：支持表头关键词（`company`、`公司`、`公司名称`、`所属公司` 等）或数据内容特征（包含"公司"、"集团"、"企业"等关键词）
 - `.csv`：包含 `phone`、`mobile`、`number`、`号码`、`手机号` 等表头；可附带 `name`、`company`
 - `.txt`：每行一个号码，或用逗号、空格、分号分隔
 
-**重要提示**：当用户提供 Excel 文件时，Agent **必须直接将文件路径传给 CLI**，不要尝试自行读取或解析 Excel 内容。CLI 的 `import-file` 命令内置了完整的 Excel 解析能力，包括旧模板兼容。
+**智能转换功能说明**：CLI 内置了强大的 Excel 智能转换能力，默认启用 `--auto-convert` 参数。当用户上传任意格式的 Excel 文件时，CLI 会自动：
+1. 智能识别表头行位置和数据起始行
+2. 通过表头关键词或数据内容特征识别号码列、姓名列、公司列
+3. 将识别到的数据重新排列为标准模板格式
+4. 自动生成符合服务器要求的 Excel 文件
+5. 完成号码导入
+
+**重要提示**：当用户提供 Excel 文件时，Agent **必须直接将文件路径传给 CLI**，不要尝试自行读取或解析 Excel 内容。CLI 的 `import-file` 命令内置了完整的 Excel 解析和智能转换能力，支持任意格式文件的自动转换。
 
 #### 3. 调用 CLI 导入文件
 
-使用 CLI 内置导入命令处理文件解析、origin JSON 生成、批次导入和进度记录：
+使用 CLI 内置导入命令处理文件解析、智能转换（如需要）、origin JSON 生成、批次导入和进度记录：
 
 ```bash
 telrobot-cli number import-file <任务ID> <用户号码文件> \
   --batch-size 500 \
   --user-id <用户ID或当前操作者标识> \
   --job-id <本次导入任务ID，可选>
+# --auto-convert 默认已开启（true），无需手动添加
 ```
+
+**智能转换说明（`--auto-convert`，默认 `true`）**：
+- `--auto-convert=true` 时，CLI 对所有 Excel 文件均运行智能转换流程，自动识别列位置并生成标准模板再导入
+- 支持以下所有常见模式：标准模板（第1行说明+第2行表头）、新格式（第1行表头）、任意自定义格式（通过内容特征识别列）
+- 智能转换流程：解析原始 Excel → 识别说明行/表头行/数据行 → 识别号码/姓名/公司列（表头关键词 + 内容特征双重策略）→ 生成含24列标准表头的新 Excel → 导入
+- 如需禁用自动转换，可显式传入 `--auto-convert=false`（此时仅支持标准模板格式）
 
 **CRM 导入说明**：当 `--to-crm=true`（默认开启）时，CLI 会将文件中解析出的 **姓名（name）**、**公司（company）** 和额外列数据一并传给服务端，CRM 客户将使用文件中的真实姓名而非自动生成的占位名。
 
 **Excel 文件处理说明**：
 - CLI 内置 Excel 解析，支持 `.xlsx`、`.xls` 格式
+- 智能格式转换（默认启用）：自动识别任意格式的 Excel 并转换为标准模板
 - 自动智能检测表头行位置（兼容旧模板第1行说明+第2行表头的格式）
+- 智能列识别：通过表头关键词或数据内容特征识别号码列、姓名列、公司列的位置
+- 自动生成标准模板：将识别到的数据重新排列为符合服务器要求的标准格式
 - 仅提取 **号码（必填）**、**姓名（可选）**、**公司（可选）**，其余列安全忽略
-- 用户使用旧版号码导入模板时，无需任何额外操作，CLI 会自动跳过模板说明行
+- 用户使用任意格式的 Excel 文件时，无需任何额外操作，CLI 会自动处理转换
 - Agent **严禁**自行读取/解析 Excel 文件内容，必须将文件路径直接传给 CLI
 
 **常见错误示例**（Agent 严禁执行以下操作）：
@@ -327,7 +375,7 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 - 失败数量
 - 当前批次 / 总批次
 
-如果某个批次失败，CLI 会把该批次号码写入 fail 文件，并立即中断后续批次，不再继续调用导入接口。最终如果存在失败记录，CLI 退出码力“2，Agent+必须将失败文件路径展示给用户。
+如果某个批次失败，CLI 会把该批次号码写入 fail 文件，并立即中断后续批次，不再继续调用导入接口。最终如果存在失败记录，CLI 退出码为 2，Agent **必须**将失败文件路径展示给用户。
 
 导入完成后，Agent 必须优先展示最终 `report.json` 路径；如存在失败记录，同时展示 `fail.json` 路径和失败数量。
 
@@ -442,4 +490,4 @@ telrobot-cli number batch-delete <任务ID> "号码1,号码2,号码3" [--to-crm]
 | 401 Unauthorized | Token 无效 | 执行 `config set-token` 更新 Token |
 | 未找到匹配的号码 | 搜索关键词无匹配 | 尝试不同关键词或执行 `number list` 浏览 |
 | 不支持的文件格式 | 文件扩展名不在 .txt/.csv/.xlsx/.xls/.excel 中 | 转换文件为支持的格式后重试 |
-| 没有解析到有效号码 | Excel 中无有效号码或表头无法识别 | 检查号码列是否包含 `phone`/`number`/`号码` 等表头，或确认号码列有数据 |
+| 没有解析到有效号码 | Excel 中无有效号码或列无法识别 | 检查号码列是否包含 `号码`/`手机`/`电话`/`phone`/`mobile` 等关键词；如无表头，CLI 会按内容特征（11位号码等）自动判断，请确认号码列有数据 |

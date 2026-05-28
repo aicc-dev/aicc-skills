@@ -31,6 +31,35 @@ description: Initialize Telrobot CLI environment automatically after skill insta
 
 当 CLI 二进制文件缺失或损坏时，Agent 自动调用此 Skill 修复环境。
 
+## 🔤 防乱码模式说明
+
+防乱码模式下，所有命令统一使用 `env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` 前缀，**仅影响当前命令进程，不污染用户全局 shell 环境**。
+
+**防乱码模式执行后，Agent 必须主动检查输出是否包含乱码字符（如 `\xef\xbf\xbd`、`?`、无意义符号序列）**：
+- 输出正常 → 继续使用防乱码模式执行后续命令
+- 输出仍乱码 → **立即切换为 `--output json` 模式**，不得继续使用表格输出：
+
+```bash
+env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list --output json
+```
+
+Agent 拿到 JSON 数据后，**必须自行解析并以格式化表格展示给用户**，不得将原始 JSON 直接输出。
+
+如果三层均无法解决，提示用户可能是 IDE/终端面板本身的编码配置问题，建议检查终端字符集设置。
+
+初始化阶段同时检测终端编码（不额外增加步骤）：
+
+```bash
+echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
+```
+
+根据输出判断模式，**会话内一次性确定，后续命令不再重复检测**：
+
+| 检测结果 | 执行模式 |
+|---|---|
+| 输出包含 `UTF-8` 或 `utf8` | ✅ 正常模式：直接执行 |
+| 输出不包含上述内容 | ⚠️ 防乱码模式：加 `env` 前缀 |
+
 ## 🚫 严格安全限制（MUST OBEY）
 
 ### 禁止行为（STRICTLY PROHIBITED）

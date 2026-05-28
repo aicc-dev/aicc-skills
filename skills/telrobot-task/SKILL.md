@@ -39,11 +39,25 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 
 ## ⚠️ 前置环境检查（MUST CHECK）
 
-**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境状态**：
+**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境和终端编码状态**：
 
+**第一步：检查 CLI 环境**（下列 3 项允许并行）：
 1. 检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
 2. 检查 `~/.telrobot-cli/config.yaml` 是否存在
 3. 检查配置中 Token 是否已配置
+
+**第二步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
+
+```bash
+echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
+```
+
+**根据检测结果，Agent 在本次会话内确定执行模式，后续所有命令统一使用该模式，不再重复检测**：
+
+| 检测结果 | 执行模式 | 命令示例 |
+|---|---|---|
+| 输出包含 `UTF-8` 或 `utf8` | ✅ **正常模式**：直接执行 | `telrobot-cli task list` |
+| 输出不包含上述内容 | ⚠️ **防乱码模式**：加 `env` 前缀 | `env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list` |
 
 **如果环境未初始化**（CLI 或配置缺失）：
 - **Agent 自动执行初始化**：使用 `telrobot-init` skill 的 `scripts/setup.js` 或 `scripts/setup.sh`
@@ -52,6 +66,22 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 - 等待用户提供 Token，然后自动配置并验证
 
 **用户无需手动调用 `@skill:telrobot-init`**，Agent 会自动处理环境初始化。
+
+## 🔤 防乱码模式说明
+
+防乱码模式下，所有命令统一使用 `env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` 前缀，**仅影响当前命令进程，不污染用户全局 shell 环境**。
+
+**防乱码模式执行后，Agent 必须主动检查输出是否包含乱码字符（如 `\xef\xbf\xbd`、`?`、无意义符号序列）**：
+- 输出正常 → 继续使用防乱码模式执行后续命令
+- 输出仍乱码 → **立即切换为 `--output json` 模式**，不得继续使用表格输出：
+
+```bash
+env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list --output json
+```
+
+Agent 拿到 JSON 数据后，**必须自行解析并以格式化表格展示给用户**，不得将原始 JSON 直接输出。
+
+如果三层均无法解决，提示用户可能是 IDE/终端面板本身的编码配置问题，建议检查终端字符集设置。
 
 ## 🚫 严格安全限制（MUST OBEY）
 
@@ -165,17 +195,25 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词] [--active N] [--
    - **严禁**只输出共N个任务等摘要而不展示完整列表
    - **严禁**只显示 UUID 而不显示任务名称（任务名称是最重要的字段）
 
-3. **终端编码乱码处理（IMPORTANT）**：
+3. **终端编码与输出质量保证（IMPORTANT）**：
 
-   如果 Agent 发现 CLI 终端输出中**中文字段出现乱码**或**无法正确解析表格格式**，**必须**改用 JSON 输出模式：
+   Agent 应先检测 locale 再执行（详见上方「终端编码检测与防乱码处理」章节）：
+   - **locale 包含 UTF-8**：直接正常执行
+     ```bash
+     telrobot-cli task list
+     telrobot-cli task list --name "营销"
+     ```
+   - **locale 不包含 UTF-8**：加 `env` 前缀防乱码
+     ```bash
+     env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list
+     env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list --name "营销"
+     ```
 
+   如果防乱码模式仍无效，**必须**改用 JSON 输出作为兜底：
    ```bash
-   telrobot-cli task list --output json
-   telrobot-cli task list --name "营销" --output json
+   env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list --output json
+   env LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 telrobot-cli task list --name "营销" --output json
    ```
-
-   - JSON 输出包含完整的结构化数据，Agent 可以直接解析所有字段（包括任务名称）
-   - 解析 JSON 后，Agent 必须以表格形式完整展示给用户，不得遗漏任何字段
 
 4. **输出格式要求**：
 
@@ -516,23 +554,105 @@ telrobot-cli task stat <任务ID> --type answer_rate --date "2024-05-01,2024-05-
 > **⚠️ 关键区分**：此命令返回**具体客户详情**（公司名、联系人姓名、手机号码）。如需查看**意向分布统计数字**（A级X个、B级Y个），请使用 `task stat --type intention`。
 
 ```bash
+# 交互式（终端使用）
 telrobot-cli task customers-by-intention [--output <格式>]
+
+# 非交互式（Agent 使用）
+telrobot-cli task customers-by-intention --task <任务UUID> --intentions <标签> [--output <格式>]
 ```
 
-**命令特性**：此命令为**全交互式**，运行后自动完成以下流程：
-1. 自动获取任务列表 → 用户选择目标任务
-2. 自动获取意向标签 → 用户选择意向标签（支持多选）
-3. 自动查询并展示客户信息
+**命令特性**：
+- **交互式模式**：不传 `--task` 时，终端会提示选择任务和意向标签
+- **非交互式模式**：通过 `--task` 和 `--intentions` 直接传参，无需人工交互
 
-> **Agent 只需直接执行此命令**，无需预先调用 `task stat --type intention` 获取意向标签，命令内部会自动完成。
+> **⚠️ Agent 必须使用非交互式模式**。Agent 环境无法响应终端交互式提示（如 "请选择任务编号"），**必须**通过 flag 传参。
 
 **Flags**:
+- `--task, -t <UUID>`：**Agent 必填**，指定任务 UUID，跳过交互式任务选择
+- `--intentions, -i <标签>`：**Agent 必填**，指定意向标签，逗号分隔。支持两种方式：
+  - **标签名称**：如 `--intentions "A级"`、`--intentions "A级,B级"`（推荐，Agent 可直接使用）
+  - **TagType 数字**：如 `--intentions "1"`、`--intentions "1,2"`
 - `--output, -o`：输出格式，默认 `table`，可选 `json`、`csv`
 
 **表格格式输出字段**：
+
 | 序号 | 公司 | 联系人 | 手机号 | 意向标签 | 通话时间 | 通话时长 |
 |------|------|--------|--------|----------|----------|----------|
 
+**⚠️ Agent 执行规范（CRITICAL）**：
+
+**第一步：获取任务列表**
+
+执行 `telrobot-cli task list [--name 关键词]` 获取任务列表，展示给用户并确认要查询的任务。
+
+**第二步：获取意向分布（用于确认标签信息）**
+
+```bash
+telrobot-cli task stat <任务UUID> --type intention --date "YYYY-MM-DD,YYYY-MM-DD"
+```
+
+- 此命令返回各意向等级的**数量分布**，帮助用户确认要查询的标签
+- 同时可以获取到标签的**名称**（如 A级、B级、C级）
+
+**第三步：执行客户详情查询（非交互式）**
+
+```bash
+# ✅ 正确：使用非交互式参数直接查询
+telrobot-cli task customers-by-intention --task <任务UUID> --intentions "A级" --output table
+
+# 查询多个意向等级
+telrobot-cli task customers-by-intention --task <任务UUID> --intentions "A级,B级" --output table
+
+# 输出为 CSV 文件
+telrobot-cli task customers-by-intention --task <任务UUID> --intentions "A级" --output csv
+```
+
+**❌ 错误示例（Agent 使用交互式命令会卡住）**：
+```bash
+# 错误：不传 --task 和 --intentions，命令会等待终端输入
+telrobot-cli task customers-by-intention --output table
+```
+
+**第四步：结果展示**
+
+以表格形式完整展示客户信息，不得遗漏字段。
+
+```
+A级（有明确意向）客户详情 - 测试-外呼导入
+共找到 6 条客户记录
+
+序号  公司          联系人  手机号        意向标签  通话时间           通话时长
+1     -             -       13196520048   A级      2026-05-19 12:02:36  5秒
+2     -             -       13196520049   A级      2026-05-19 12:01:47  4秒
+3     ai_7995605    -       434242424     A级      2026-04-30 17:03:19  37秒
+4     ai_7995605    -       434242424     A级      2026-04-29 20:52:00  23秒
+5     ai_3229397    -       42342423424   A级      2026-04-29 20:51:58  24秒
+6     ai_8164855    -       42424234242   A级      2026-04-29 20:51:57  26秒
+```
+
+**第五步：展示后的交互引导**
+
+Agent 展示客户列表后，应主动提供后续操作选项：
+
+```
+需要我做什么？
+• 导出客户联系方式到文件？
+• 查看其他意向等级客户？
+```
+
+- 用户选择导出：调用 `customers-by-intention --task <UUID> --intentions "A级" --output csv`
+- 用户选择查看其他意向：更换 `--intentions` 参数重新执行
+
+**注意事项**：
+1. **Agent 严禁使用交互式模式**：必须传 `--task` 和 `--intentions`
+2. `--intentions` 支持标签名称模糊匹配（如 `--intentions "A"` 可匹配 "A级（有明确意向）"）
+3. 意向标签完全由接口动态返回，支持任意扩展（A-Z、1-26等）
+4. 如果查询结果为空则告知用户
+5. **严禁自行构造表格或省略字段**：必须原样转述 CLI 输出
+
+**User triggers**: "按意向查客户", "查询意向客户", "A级客户有哪些", "高意向客户", "意向客户列表", "获取某类意向客户", "意向客户联系方式"
+
+---
 
 ### Activate Task
 
@@ -549,34 +669,6 @@ telrobot-cli task activate [任务ID或名称]
 > **注意**：新建任务默认已激活，此命令主要用于激活**复制任务**（复制后默认休眠）或被手动停用的任务。
 
 **User triggers**: "激活任务", "唤醒任务"
-
-
-
-**⚠️ Agent 执行规范（CRITICAL）**：
-
-1. **直接执行命令**：
-   ```bash
-   telrobot-cli task customers-by-intention --output table
-   ```
-   命令会自动引导用户完成：选择任务 → 选择意向标签 → 展示客户信息
-
-2. **禁止多余步骤**：
-   ```bash
-   # ❌ 错误：预先调用 task stat 获取意向标签（命令内部已自动获取）
-   telrobot-cli task stat <UUID> --type intention
-
-   # ✅ 正确：直接运行 customers-by-intention，一步到位
-   telrobot-cli task customers-by-intention --output table
-   ```
-
-3. **结果展示**：以表格形式展示客户信息，如果查询结果为空则告知用户
-
-**注意事项**：
-1. 意向标签完全由接口动态返回，支持任意扩展（A-Z、1-26等）
-2. 如果任务列表为空，命令会自动退出
-3. 如果意向标签为空，命令会自动退出
-
-**User triggers**: "按意向查客户", "查询意向客户", "A级客户有哪些", "高意向客户", "意向客户列表", "获取某类意向客户", "意向客户联系方式"
 
 ---
 

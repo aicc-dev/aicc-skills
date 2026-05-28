@@ -13,12 +13,11 @@ skills/
 │       ├── setup.js                             # Node.js 版本
 │       ├── setup.sh                             # Shell 版本
 │       ├── setup.ps1                            # PowerShell 版本（Windows）
-│       └── token-config.js                      # Token 配置
+│       ├── token-config.js                      # Token 配置
+│       └── profile-current.js                   # 切换当前 profile
 ├── telrobot-task/                               # 任务管理技能
 │   └── SKILL.md                                 # 技能定义
-├── telrobot-number/                             # 号码管理技能
-│   └── SKILL.md                                 # 技能定义
-└── telrobot-interactive-task-create/            # 交互式任务创建技能
+└── telrobot-number/                             # 号码管理技能
     └── SKILL.md                                 # 技能定义
 ```
 
@@ -34,7 +33,7 @@ skills/
 - 自动检测用户操作系统和 CPU 架构
 - 下载对应的 Telrobot CLI 二进制文件
 - 安装到 `~/.telrobot-cli/bin/`
-- 生成配置文件 `~/.telrobot-cli/config.yaml`
+- 配置文件由 `telrobot-cli config ...` 命令创建和维护，setup 脚本不写 `config.yaml`
 
 **使用场景**:
 - 用户首次使用 Telrobot 功能
@@ -51,7 +50,8 @@ skills/
 **环境变量**:
 - `TELROBOT_DOWNLOAD_BASE_URL`: 覆盖下载地址
 - `TELROBOT_BIN_DIR`: 覆盖安装目录
-- `TELROBOT_TOKEN`: 设置 API Token
+- `TELROBOT_DEV=1`: 从本地 Go 源码编译 CLI，不从远程下载
+- `TELROBOT_CLI_SOURCE`: DEV 模式下的 `telrobot-saas-go/telrobot-saas-cli` 源码路径
 
 ---
 
@@ -102,25 +102,6 @@ skills/
 添加号码
 批量导入号码
 导入号码
-```
-
----
-
-### 4. telrobot-interactive-task-create（交互式任务创建）
-
-**路径**: `telrobot-interactive-task-create/SKILL.md`
-
-**用途**: 引导用户使用交互式命令创建任务
-
-**功能**:
-- 识别用户创建任务意图
-- 引导用户在终端执行 `telrobot-cli task add` 交互式创建流程
-
-**触发方式**:
-```
-创建呼叫任务
-帮我建个新任务
-新建外呼任务
 ```
 
 ---
@@ -217,19 +198,19 @@ Agent: 标准解决方案：[按文档提供方案]
 根据你使用的 Agent 替换 `<agent-name>`：
 
 ```bash
-npx skills add gsq/telrobot-saas-cli -a <agent-name> -g -y
+npx skills add aicc-dev/aicc-skills -a <agent-name> -g -y
 ```
 
 支持的 Agent 示例：
 
 | Agent          | 安装命令                                                            |
 |----------------|-----------------------------------------------------------------|
-| WorkBuddy      | `npx skills add  aicc-dev/aicc-skills  -a workbuddy -g -y`      |
-| Qoder          | `npx skills add  aicc-dev/aicc-skills  -a qoder -g -y`          |
-| Cursor         | `npx skills add  aicc-dev/aicc-skills  -a cursor -g -y`         |
-| Claude Code    | `npx skills add  aicc-dev/aicc-skills  -a claude-code -g -y`    |
-| GitHub Copilot | `npx skills add  aicc-dev/aicc-skills  -a github-copilot -g -y` |
-| Windsurf       | `npx skills add  aicc-dev/aicc-skills  -a windsurf -g -y`       |
+| WorkBuddy      | `npx skills add aicc-dev/aicc-skills -a workbuddy -g -y`          |
+| Qoder          | `npx skills add aicc-dev/aicc-skills -a qoder -g -y`              |
+| Cursor         | `npx skills add aicc-dev/aicc-skills -a cursor -g -y`             |
+| Claude Code    | `npx skills add aicc-dev/aicc-skills -a claude-code -g -y`        |
+| GitHub Copilot | `npx skills add aicc-dev/aicc-skills -a github-copilot -g -y`     |
+| Windsurf       | `npx skills add aicc-dev/aicc-skills -a windsurf -g -y`           |
 
 > 完整支持列表：执行 `npx skills add --help` 查看所有可用 agent 名称。
 
@@ -240,7 +221,7 @@ npx skills add gsq/telrobot-saas-cli -a <agent-name> -g -y
 在 AI Agent 中：
 ```
 用户：安装 telrobot 技能包
-Agent：执行 npx skills add gsq172/aicc-skills...
+Agent：执行 npx skills add aicc-dev/aicc-skills...
 ```
 
 #### 2. 初始化环境
@@ -269,20 +250,32 @@ Agent：读取配置 → 执行 CLI 命令 → 返回结果
 
 **结构**:
 ```yaml
+current: 默认用户
+
 server:
-  baseURL:  https://internal-saas.telrobot.top/cli/
+  baseURL: https://ai.telrobot.top/cli
   apiVersion: v1
-auth:
-  token: user-token-here
+
 output:
   format: table
+
+profiles:
+  默认用户:
+    auth:
+      token: user-token-here
+
+  张三:
+    auth:
+      token: another-user-token
 ```
+
+profile 表示同一生产环境下的不同用户身份；服务地址和输出格式保持全局配置。未指定 profile 时，CLI 按 `--profile`、`TELROBOT_PROFILE`、`current`、单 profile 自动选择的顺序解析。新增或更新 profile token 使用 `telrobot-cli config profile set-token <别名> <token>`。
 
 **配置方式**:
 
-1. **初始化时自动生成**：
-```
-使用 telrobot:init 初始化环境
+1. **创建配置文件**：
+```bash
+telrobot-cli config init
 ```
 
 2. **手动配置 Token**：
@@ -292,8 +285,15 @@ output:
 
 3. **环境变量**：
 ```bash
-TELROBOT_TOKEN=abc123 node skills/telrobot-init/scripts/setup.js
+node skills/telrobot-init/scripts/setup.js
+telrobot-cli config set-token abc123
+telrobot-cli config profile set-token 张三 abc123
+telrobot-cli config profile use 张三
 ```
+
+如果只是切换默认用户/profile，使用 `telrobot-cli config profile use <别名>`，不需要重新初始化或重新下载 CLI。
+
+如果只是补充或更新某个 profile 的 token，使用 `telrobot-cli config profile set-token <别名> <token>`；profile 不存在时 CLI 会自动创建。
 
 ---
 
@@ -308,7 +308,7 @@ Agent 获得技能定义
        ↓
 telrobot:init 技能执行
        ↓
-下载二进制文件 → 生成配置
+下载二进制文件 → telrobot-cli config init/set-token
        ↓
 用户开始日常使用
        ↓

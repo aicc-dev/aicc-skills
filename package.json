@@ -7,9 +7,8 @@
     "skills/"
   ],
   "scripts": {
-    "test": "go test ./...",
-    "test:go": "go test ./...",
-    "build": "cd cmd/telrobot-cli && go build -o ../../bin/telrobot-cli .",
+    "test": "node --test skills/telrobot-init/scripts/setup.test.js",
+    "test:setup": "node --test skills/telrobot-init/scripts/setup.test.js",
     "setup": "node skills/telrobot-init/scripts/setup.js"
   },
   "engines": {

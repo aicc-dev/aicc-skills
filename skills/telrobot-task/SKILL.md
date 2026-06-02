@@ -7,6 +7,32 @@ description: Use this skill for Telrobot CLI task management operations includin
 
 This skill provides task management for Telrobot CLI. Configuration is read from `~/.telrobot-cli/config.yaml`.
 
+## Profile 选择
+
+Telrobot CLI 支持同一生产环境下的多个用户身份 profile。用户指定身份时，命令必须透传 `--profile <name>`，也可以通过 `TELROBOT_PROFILE=<name>` 选择；未指定时使用配置文件中的 `current`。示例：
+
+```bash
+telrobot-cli --profile 张三 task list
+TELROBOT_PROFILE=李四 telrobot-cli task list
+```
+
+## 实时数据与 Memory 规则（CRITICAL）
+
+Agent 必须把 Telrobot CLI 作为任务、客户、统计等业务数据的唯一实时数据源。Agent memory、历史对话、上一次命令输出只能用于理解用户意图，不能用于回答当前业务数据。
+
+**强制规则**：
+
+1. **每次业务查询必须执行 CLI**：用户要求查看任务、查询任务详情、统计拨打情况、查询意向客户时，必须实时执行对应 `telrobot-cli` 命令。
+2. **禁止用 memory 回答业务结果**：不得说“根据之前的数据”“我记得有几个任务”并直接给出任务数量、状态、统计数字或客户列表。
+3. **上下文只能解析对象，不能复用数据**：用户说“刚才那个任务”时，可以从上下文提取任务 ID，但仍必须执行 `telrobot-cli task info <任务ID>` 或对应命令获取最新状态。
+4. **状态变更后必须重新查询确认**：执行 `task start`、`task stop`、`task update`、`task delete`、`task activate` 等修改操作后，必须再执行查询命令确认最终状态，并基于最新 CLI 输出回答。
+5. **回答应说明实时来源**：回答实时结果时，简要说明“数据来源：刚刚执行 `<命令>`”，或说明查询时间，避免用户误以为是历史记忆。
+6. **精确判断优先使用 JSON**：当需要筛选、比对、后续操作或终端表格中文乱码时，优先追加 `--output json`，用结构化输出判断，再用自然语言或表格转述。
+
+**允许 memory 保存**：常用 profile、默认分页大小、用户偏好的输出格式、上次用户提到的任务 ID。
+
+**禁止 memory 保存并复用为事实**：任务数量、任务状态、任务名称列表、客户联系方式、意向统计、拨打统计、号码状态。
+
 ## 🚀 安装后使用方式（CRITICAL）
 
 **安装此 Skill 后，Agent 应立即检查 CLI 环境是否已初始化**。如果未初始化，自动执行环境初始化流程。
@@ -150,13 +176,14 @@ telrobot-cli config init
 ### List Tasks
 
 ```bash
-telrobot-cli task list [--page N] [--size N] [--name 关键词] [--active N] [--call-in N] [--date-start YYYY-MM-DD] [--date-end YYYY-MM-DD] [--status N] [--group-type 类型] [--groups ID] [--category ID]
+telrobot-cli task list [--page N] [--size N] [--all] [--name 关键词] [--active N] [--call-in N] [--date-start YYYY-MM-DD] [--date-end YYYY-MM-DD] [--status N] [--group-type 类型] [--groups ID] [--category ID]
 ```
 
 **Flags**:
 
 - `--page N`：页码，默认 1
 - `--size N`：每页数量，默认 20
+- `--all`：获取所有任务，自动遍历所有分页
 - `--name 关键词`：按任务名称**模糊过滤**，支持部分名称（如 `--name "哈哈"` 可匹配 "哈哈哈"、"0430-哈哈"）
 - `--active N`：按激活状态筛选（-1: 不筛选, 0: 休眠, 1: 激活）
 - `--call-in N`：按呼叫类型筛选（-1: 不筛选, 0: 呼出, 1: 呼入）
@@ -241,12 +268,15 @@ telrobot-cli task list [--page N] [--size N] [--name 关键词] [--active N] [--
    - ✅ 激活状态（激活/休眠）
    - ✅ 其他 CLI 输出的字段
 
-**User triggers**: "查看任务列表", "显示所有任务", "列出任务", "任务有哪些","查看我的任务","查看全部任务"
+**User triggers**: "查看任务列表", "显示所有任务", "列出任务", "任务有哪些","查看我的任务","查看全部任务", "查看所有任务", "导出全部任务"
 
 **使用示例**：
 ```bash
 # 查看任务列表（分页显示）
 telrobot-cli task list
+
+# 查看所有任务（自动遍历分页）
+telrobot-cli task list --all
 
 # 按名称搜索（自动获取全部结果）
 telrobot-cli task list --name "营销"
@@ -340,6 +370,38 @@ telrobot-cli task list --name <关键词>
 - 结果展示与 `task list` 完全一致（含状态、类型、并发量等完整信息）
 
 **User triggers**: "搜索任务", "查找任务", "找一下任务，查看任务"
+
+### Task Info
+
+```bash
+telrobot-cli task info <任务ID> [--output table|json]
+```
+
+查看单个任务详情，返回任务ID、任务名称、状态、最大并发、CPS、回收限制、创建时间、修改时间。
+
+**Agent 执行规范**：
+- 用户提供 UUID 时，直接执行 `telrobot-cli task info <UUID>`。
+- 用户提供任务名称时，先执行 `telrobot-cli task list --name "<关键词>"`，完整展示匹配结果并让用户确认 UUID。
+- 需要精确解析或后续继续操作时，使用 `--output json`。
+- 该命令用于获取实时任务详情，禁止用 memory 或上一次列表结果直接回答。
+
+**User triggers**: "查看任务详情", "任务详情", "这个任务的信息", "查看任务状态详情", "任务配置摘要"
+
+### Task Status
+
+```bash
+telrobot-cli task status [任务ID或名称] [--output table|json]
+```
+
+查看任务运行概况，返回任务名称、总号码数、已拨打数量、待拨打数量、完成率。
+
+**Agent 执行规范**：
+- 用户提供 UUID 或明确名称时可直接执行；名称存在歧义时先用 `task list --name` 让用户确认。
+- 用户问“现在跑到哪了”、“还有多少没打”、“任务进度”、“运行概况”时优先使用此命令，而不是 `task stat`。
+- 如果用户只问“待拨打数量”，也使用 `task status` 展示完整运行概况。
+- 修改任务状态后用户要求确认当前状态时，可使用 `task status` 或 `task info` 重新查询，不能只根据修改命令推断。
+
+**User triggers**: "任务运行状态", "任务进度", "还有多少没打", "待拨打数量", "执行概况", "跑到哪了", "完成率"
 
 ### Start Task
 

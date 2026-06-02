@@ -7,6 +7,32 @@ description: Use this skill for Telrobot CLI number management operations includ
 
 This skill provides comprehensive number (contact) management for Telrobot CLI. All number operations are scoped to a specific task by task ID.
 
+## Profile 选择
+
+Telrobot CLI 支持同一生产环境下的多个用户身份 profile。用户指定身份时，命令必须透传 `--profile <name>`，也可以通过 `TELROBOT_PROFILE=<name>` 选择；未指定时使用配置文件中的 `current`。示例：
+
+```bash
+telrobot-cli --profile 张三 number list <task-id>
+TELROBOT_PROFILE=李四 telrobot-cli number list <task-id>
+```
+
+## 实时数据与 Memory 规则（CRITICAL）
+
+Agent 必须把 Telrobot CLI 作为号码、联系人、导入结果等业务数据的唯一实时数据源。Agent memory、历史对话、上一次命令输出只能用于理解用户意图，不能用于回答当前业务数据。
+
+**强制规则**：
+
+1. **每次业务查询必须执行 CLI**：用户要求查看号码、搜索号码、查看号码详情、导入结果、重置或删除结果时，必须实时执行对应 `telrobot-cli` 命令。
+2. **禁止用 memory 回答业务结果**：不得根据历史记忆直接回答某个号码是否存在、号码状态、联系人姓名、公司、导入数量或失败原因。
+3. **上下文只能解析对象，不能复用数据**：用户说“刚才那个号码/任务”时，可以从上下文提取号码或任务 ID，但仍必须执行 `telrobot-cli number ...` 获取最新状态。
+4. **状态变更后必须重新查询确认**：执行 `number add`、`number update`、`number delete`、`number batch-reset`、`number import-file` 等修改操作后，必须基于 CLI 返回结果回答；如果用户继续追问当前状态，必须再次查询。
+5. **回答应说明实时来源**：回答实时号码结果时，简要说明“数据来源：刚刚执行 `<命令>`”，或说明查询时间。
+6. **精确判断优先使用 JSON**：当 CLI 支持 JSON 输出且需要筛选、比对或后续操作时，优先使用 JSON 输出；否则原样转述 CLI 表格结果。
+
+**允许 memory 保存**：常用 profile、上次用户提到的任务 ID、默认分页大小、用户偏好的展示格式。
+
+**禁止 memory 保存并复用为事实**：号码列表、号码状态、联系人信息、公司信息、导入结果、失败号码、任务内号码总数。
+
 ## 🚀 安装后使用方式（CRITICAL）
 
 **安装此 Skill 后，Agent 应立即检查 CLI 环境是否已初始化**。如果未初始化，自动执行环境初始化流程。

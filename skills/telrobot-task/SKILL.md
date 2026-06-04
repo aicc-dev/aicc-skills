@@ -9,7 +9,7 @@ This skill provides task management for Telrobot CLI. Configuration is read from
 
 ## Profile 选择
 
-Telrobot CLI 支持同一生产环境下的多个用户身份 profile。用户指定身份时，命令必须透传 `--profile <name>`，也可以通过 `TELROBOT_PROFILE=<name>` 选择；未指定时使用配置文件中的 `current`。示例：
+Telrobot CLI 支持多个用户身份 profile。用户指定身份时，命令必须透传 `--profile <name>`，也可以通过 `TELROBOT_PROFILE=<name>` 选择；未指定时使用配置文件中的 `current`。示例：
 
 ```bash
 telrobot-cli --profile 张三 task list
@@ -42,7 +42,7 @@ Agent 必须把 Telrobot CLI 作为任务、客户、统计等业务数据的唯
 用户："查看当前账户下的呼叫任务"
 → Agent 自动检测环境
 → 环境未初始化 → Agent 自动执行 setup.js
-→ Agent 输出：请提供云蝠系统内配置AI助理下生成的token信息
+→ Agent 输出：请提供系统内配置 AI 助理下生成的 token 信息
 → 用户提供 Token
 → Agent 自动配置并验证
 → Agent 查询任务并用自然语言回答
@@ -88,7 +88,7 @@ echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
 **如果环境未初始化**（CLI 或配置缺失）：
 - **Agent 自动执行初始化**：使用 `telrobot-init` skill 的 `scripts/setup.js` 或 `scripts/setup.sh`
 - 下载 CLI 二进制 + 生成基础配置（Token 留空）
-- **Agent 在对话中输出**：`请提供云蝠系统内配置AI助理下生成的token信息`
+- **Agent 在对话中输出**：`请提供系统内配置 AI 助理下生成的 token 信息`
 - 等待用户提供 Token，然后自动配置并验证
 
 **用户无需手动调用 `@skill:telrobot-init`**，Agent 会自动处理环境初始化。

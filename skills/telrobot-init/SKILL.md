@@ -35,7 +35,7 @@ telrobot-cli config init
 当缺少 token 时，Agent 必须先输出：
 
 ```
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
 ```
 
 用户提供 token 后：
@@ -56,7 +56,7 @@ telrobot-cli config profile use <别名>
 - **禁止**由 Agent 直接编辑 `config.yaml` 创建 profile 或 token；配置写入必须通过 `telrobot-cli config ...` 命令完成。
 - CLI 当前没有单独的 `profile add` 命令；新增用户身份使用 `telrobot-cli config profile set-token <别名> <token>`。
 - 如果用户只给别名未给 token，Agent 必须继续输出 token 引导文本，不能创建空 token profile。
-- profile 表示同一生产环境下的不同用户身份，不表示 dev/test/prod 环境。
+- profile 表示不同用户身份。
 - 中文 profile 名按 UTF-8 支持，建议避免空格、`/`、`\`、`:` 等容易影响 shell 或路径解析的字符。
 
 ## DEV 本地编译模式
@@ -174,7 +174,7 @@ telrobot-cli config profile list
 2. **提供标准解决方案**：检查环境、重新初始化或提示用户检查网络连接
 3. **禁止尝试**任何形式的 HTTP 降级或绕过
 4. **禁止修改**安装脚本或跳过安装步骤
-5. **禁止展示服务器地址**：初始化完成后向用户展示结果时，**严禁**展示 API 服务器地址（baseURL），仅展示 CLI 路径、平台信息、Token 配置状态即可
+5. **展示信息保持简洁**：初始化完成后向用户展示结果时，仅展示 CLI 路径、平台信息、Token 配置状态即可
 
 ## 初始化完成展示规范
 
@@ -186,10 +186,6 @@ telrobot-cli config profile list
 - Token 配置状态（已配置/未配置）
 - 下一步使用指引
 
-**❌ 禁止展示的信息**：
-- API 服务器地址（baseURL）
-- 配置文件中的任何 URL
-
 **示例汇报格式（Token 未配置）**：
 ```
 ✅ Telrobot CLI 环境初始化完成
@@ -199,7 +195,7 @@ CLI 路径      ~/.telrobot-cli/bin/telrobot-cli
 平台          darwin-arm64 (Apple Silicon)
 Token         ❌ 未配置
 
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
 ```
 
 **示例汇报格式（Token 已配置）**：
@@ -241,7 +237,7 @@ telrobot-cli task list --page 1 --size 5
 
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（在系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -252,7 +248,7 @@ telrobot-cli task list --page 1 --size 5
 **初始化前发现 token 缺失或为空时，Agent 必须在对话中生成以下引导文本**：
 
 ```
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
 ```
 
 **引导逻辑**：
@@ -271,7 +267,7 @@ telrobot-cli task list --page 1 --size 5
 ```
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（在系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -280,7 +276,7 @@ telrobot-cli task list --page 1 --size 5
 **完整交互流程示例**：
 ```
 [Agent 在初始化前输出]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
 
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -315,7 +311,7 @@ telrobot-cli task list --page 1 --size 5
 [Agent 在对话中输出]
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（在系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -360,7 +356,7 @@ telrobot-cli task list --page 1 --size 5
    ```
 5. **Token 未配置或为空**：Agent 输出引导文本
    ```
-   请提供云蝠系统内配置AI助理下生成的token信息
+   请提供系统内配置 AI 助理下生成的 token 信息
    ```
 6. **用户提供 Token 后**：Agent 自动配置并验证
    ```bash
@@ -391,7 +387,7 @@ Agent 检测环境未初始化
     ↓
 Agent 执行 setup 脚本
     ↓
-Agent 提示："请提供云蝠系统内配置AI助理下生成的token信息"
+Agent 提示："请提供系统内配置 AI 助理下生成的 token 信息"
     ↓
 用户提供 Token
     ↓
@@ -495,7 +491,7 @@ https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest
 For API token configuration, you can:
 
 1. **Agent 引导用户提供**（推荐）：
-   - 初始化前发现缺少当前 profile 的 token 时，Agent 自动在对话中输出：`请提供云蝠系统内配置AI助理下生成的token信息`
+   - 初始化前发现缺少当前 profile 的 token 时，Agent 自动在对话中输出：`请提供系统内配置 AI 助理下生成的 token 信息`
    - 用户提供 Token 后，Agent 执行：`telrobot-cli config set-token <token>`，或 `telrobot-cli config profile set-token <profile> <token>`
 
 2. Use CLI config commands:
@@ -523,7 +519,7 @@ telrobot-cli config profile remove 张三
 telrobot-cli --profile 张三 task list
 ```
 
-配置文件使用 `current` 和 `profiles` 管理同一生产环境下的多个用户身份。默认 profile 名为 `默认用户`；中文 profile 名按 UTF-8 支持，建议避免空格、`/`、`\`、`:` 等容易影响 shell 或路径解析的字符。
+配置文件使用 `current` 和 `profiles` 管理多个用户身份。默认 profile 名为 `默认用户`；中文 profile 名按 UTF-8 支持，建议避免空格、`/`、`\`、`:` 等容易影响 shell 或路径解析的字符。
 
 ## Agent 使用原则（CRITICAL）
 
@@ -553,7 +549,7 @@ node scripts/setup.js
     ↓
 [Agent 创建配置并询问 Token]
 telrobot-cli config init
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
     ↓
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -586,7 +582,7 @@ node scripts/setup.js
     ↓
 [Agent 创建配置并询问用户身份和 Token]
 telrobot-cli config init
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
     ↓
 [用户输入：张三 + Token]
     ↓
@@ -652,7 +648,7 @@ telrobot-cli task list --page 1 --size 20
 [用户安装 telrobot-number Skill]
     ↓
 [Agent 自动初始化环境 + 提示 Token]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置 AI 助理下生成的 token 信息
     ↓
 [用户提供 Token]
 xxx-token-xxx

@@ -121,10 +121,6 @@ telrobot-cli config profile use 张三
 ```yaml
 current: 默认用户
 
-server:
-  baseURL: https://ai.telrobot.top/cli
-  apiVersion: v1
-
 output:
   format: table
 
@@ -134,7 +130,7 @@ profiles:
       token: user-token-here
 ```
 
-可以用 `TELROBOT_HOME` 覆盖 Telrobot 本地目录。`TELROBOT_DEV=1` 和 `TELROBOT_CLI_SOURCE` 控制本地源码编译。多用户身份用 profile 表示同一生产环境下的不同用户 token，不表示 dev/test/prod 环境。
+可以用 `TELROBOT_HOME` 覆盖 Telrobot 本地目录。`TELROBOT_DEV=1` 和 `TELROBOT_CLI_SOURCE` 控制本地源码编译。多用户身份用 profile 表示不同用户 token。
 
 ## Token 配置
 

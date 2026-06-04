@@ -255,10 +255,6 @@ Agent：读取配置 → 执行 CLI 命令 → 返回结果
 ```yaml
 current: 默认用户
 
-server:
-  baseURL: https://ai.telrobot.top/cli
-  apiVersion: v1
-
 output:
   format: table
 
@@ -272,7 +268,7 @@ profiles:
       token: another-user-token
 ```
 
-profile 表示同一生产环境下的不同用户身份；服务地址和输出格式保持全局配置。未指定 profile 时，CLI 按 `--profile`、`TELROBOT_PROFILE`、`current`、单 profile 自动选择的顺序解析。新增或更新 profile token 使用 `telrobot-cli config profile set-token <别名> <token>`。
+profile 表示不同用户身份。未指定 profile 时，CLI 按 `--profile`、`TELROBOT_PROFILE`、`current`、单 profile 自动选择的顺序解析。新增或更新 profile token 使用 `telrobot-cli config profile set-token <别名> <token>`。
 
 **配置方式**:
 

@@ -207,7 +207,7 @@ ls -l "$TELROBOT_HOME/bin"
 预期：
 - 如果 CLI 或配置不存在，WorkBuddy 自动触发 `telrobot:init`
 - CLI 缺失时先执行 setup 安装 CLI；配置缺失时执行 `telrobot-cli config init`
-- token 缺失时，必须提示：`请提供云蝠系统内配置AI助理下生成的token信息`
+- token 缺失时，必须提示：`请提供系统内配置 AI 助理下生成的 token 信息`
 - 用户提供 token 后，WorkBuddy 执行 `telrobot-cli config set-token <token>` 或 `telrobot-cli config profile set-token <别名> <token>` 并验证
 - 不要求用户手动执行 setup 命令
 

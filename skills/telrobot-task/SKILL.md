@@ -452,47 +452,21 @@ telrobot-cli task start [任务ID或名称] [--force]
 3. **错误处理**：
 
    - 报错含“休眠”：提示先执行 `telrobot-cli task activate <任务UUID>`，再重新启动
-   - 报错含“线路”或“未配置外呼线路”：**Agent 应自动进入线路配置流程**（见下方 Set Task Line），配置完毕后自动重试启动
+   - 报错含“线路”或“未配置外呼线路”：提示用户当前 CLI 暂不支持自动配置外呼线路。设置线路依赖的编辑接口尚未同时兼容 2.0/3.0 任务，Agent 不得调用 `task set-line`、`task list-lines` 或 HTTP 接口绕过处理。
    - **禁止**静默处理错误或自动降级为 HTTP 请求
 
 **User triggers**: "启动任务", "开始任务", "运行任务"
 
 
 
-### Set Task Line（配置外呼线路）
+### Set Task Line（配置外呼线路，暂不可用）
 
-```bash
-# 交互式（终端使用）
-telrobot-cli task set-line [任务ID或名称]
+当前 CLI 暂不开放配置外呼线路流程。设置线路依赖的编辑接口尚未同时兼容 2.0/3.0 任务，Agent 不得调用：
 
-# 非交互式（Agent 使用）
-telrobot-cli task set-line <任务UUID> --line "序号:并发数"
+- `telrobot-cli task set-line`
+- `telrobot-cli task list-lines`
 
-# 查看可用线路列表（Agent 必须先执行这步）
-telrobot-cli task list-lines
-```
-
-**`--line` 参数格式**：
-
-- `"1"` — 使用第1条线路，并发数取剩余最大值
-- `"1:5"` — 使用第1条线路，并发数为5
-- `"1,2:3"` — 使用第1条和第2条线路，第2条并发数为3
-- `"线路ID:5"` — 用线路ID精确指定
-
-**Agent 完整执行流程（当用户请求启动任务报"线路"错误时）**：
-
-1. 执行 `telrobot-cli task list-lines` 获取线路列表
-2. 将线路列表以表格形式展示给用户（序号、线路名称、剩余并发）
-3. **询问用户**："请选择要使用的线路序号，以及并发数（可留空使用全部剩余并发）"
-   - 示例："选第1条，并发2" → 转为 `--line "1:2"`
-   - 示例："选第1条" → 转为 `--line "1"`
-4. 执行：`telrobot-cli task set-line <任务UUID> --line "<用户选择>"`
-5. 配置成功后**自动重试**：`telrobot-cli task start <任务UUID>`
-
-> **交互式模式说明**（仅终端使用，Agent 不适用）：
-> 不传 `--line` 时进入方向键+空格多选界面（最多5条），每条线路逐一输入并发数。
-
-**User triggers**: "配置线路", "设置外呼线路", "给任务配线路", "任务没有线路"
+当用户提出“配置线路”“设置外呼线路”“给任务配线路”“任务没有线路”等需求时，Agent 必须提示：`当前 CLI 暂不支持自动配置外呼线路，请先在系统后台完成线路配置后再启动任务`，并停止流程，不得通过 HTTP 或其他方式绕过执行。
 
 
 ### Stop Task
@@ -739,7 +713,7 @@ telrobot-cli task activate [任务ID或名称]
 | 错误信息 | 原因 | 解决方案 |
 |---------|------|---------|
 | 任务处于休眠状态，无法操作 | 任务未激活 | 先执行 `task activate <任务ID>` |
-| 任务未配置外呼线路 | 未设置线路 | 先执行 `task set-line` |
-| 并发数异常 | 线路并发之和不等于总并发 | 重新配置线路 |
+| 任务未配置外呼线路 | 未设置线路 | 当前 CLI 暂不支持自动配置外呼线路，请先在系统后台完成线路配置 |
+| 并发数异常 | 线路并发之和不等于总并发 | 当前 CLI 暂不支持自动调整线路，请先在系统后台检查线路配置 |
 | 401 Unauthorized | Token 无效 | 执行 `config set-token` 更新 Token |
 | 任务不存在 | ID 错误 | 先执行 `task list` 确认 ID |

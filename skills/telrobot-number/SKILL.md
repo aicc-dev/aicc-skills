@@ -178,7 +178,7 @@ telrobot-cli config init
 
 ## Number Management Commands
 
-> **注意**：所有号码操作均需要提供 `任务ID`（UUID 格式）作为第一个参数。可通过 `telrobot-cli task list` 或 `telrobot-cli task search` 获取任务ID。
+> **注意**：所有号码操作均需要提供 `任务ID`（UUID 格式）作为第一个参数。可通过 `telrobot-cli task list` 或 `telrobot-cli task list --name <关键词>` 获取任务ID。
 
 ### Global Flags（所有子命令可用）
 
@@ -481,6 +481,7 @@ telrobot-cli number update <任务ID> <号码> [--name "新姓名"] [--company "
 以下 CLI 操作接口尚未完全验证，当前 skill 不得调用：
 
 - `telrobot-cli number delete`
+- `telrobot-cli number reset`
 - `telrobot-cli number batch-reset`
 - `telrobot-cli number batch-delete`
 

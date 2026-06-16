@@ -40,9 +40,9 @@ skills/telrobot-number/SKILL.md
 安装当前仓库：
 
 ```bash
-npx skills add gsq/telrobot-saas-cli -a workbuddy -g -y
-npx skills add gsq/telrobot-saas-cli -a claude-code -g -y
-npx skills add gsq/telrobot-saas-cli -a cursor -g -y
+npx skills add aicc-dev/aicc-skills -a workbuddy -g -y
+npx skills add aicc-dev/aicc-skills -a claude-code -g -y
+npx skills add aicc-dev/aicc-skills -a cursor -g -y
 ```
 
 通用 GitHub 仓库模板：
@@ -191,5 +191,5 @@ dist/SHA256SUMS
 发布时把这些文件上传到：
 
 ```text
-https://releases.telrobot.com/latest/
+https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest/
 ```

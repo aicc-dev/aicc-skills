@@ -90,7 +90,7 @@ skills/
 **功能**:
 - 查看、添加、更新号码
 - 批量导入号码
-- 文件导入号码：调用 `telrobot-cli number import-file` 将 `.txt/.csv/.excel/.xlsx/.xls` 转为 origin JSON，再按 500 条/批导入
+- 文件导入号码：调用 `telrobot-cli number import-file` 将 `.txt/.csv/.excel/.xlsx` 转为 origin JSON，再按 500 条/批导入；`.xls` 需先转换为标准 `.xlsx`
 - 呼入任务禁止导入号码；选择导入目标时必须提示用户改选外呼任务
 - 单批导入号码数量达到或超过 50000 条时，必须使用后台异步文件导入
 - 删除号码、批量重置号码、批量删除号码接口尚未完全验证，当前暂不可用

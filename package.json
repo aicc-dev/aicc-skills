@@ -1,6 +1,6 @@
 {
   "name": "telrobot-skills",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "Telrobot agent skill package for installation with npx skills add. Provides telrobot:init, telrobot:task, and telrobot:number skills for CLI environment initialization, task management, and number operations.",
   "private": true,
   "files": [

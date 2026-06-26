@@ -194,7 +194,7 @@ CLI 路径      ~/.telrobot-cli/bin/telrobot-cli
 平台          darwin-arm64 (Apple Silicon)
 Token         ❌ 未配置
 
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
 ```
 
 **示例汇报格式（Token 已配置）**：
@@ -236,7 +236,7 @@ telrobot-cli task list --page 1 --size 5
 
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -247,7 +247,7 @@ telrobot-cli task list --page 1 --size 5
 **初始化完成后，Agent 必须在对话中生成以下引导文本**：
 
 ```
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
 ```
 
 **引导逻辑**：
@@ -266,7 +266,7 @@ telrobot-cli task list --page 1 --size 5
 ```
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -282,7 +282,7 @@ telrobot-cli task list --page 1 --size 5
    telrobot-cli config set-token <your-token>
 
 [Agent 在对话中输出]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
 
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -316,7 +316,7 @@ telrobot-cli task list --page 1 --size 5
 [Agent 在对话中输出]
 ❌ Token 验证失败，无法拉取任务列表。请检查：
 1. Token 是否正确复制（完整复制，不要遗漏字符）
-2. Token 是否已过期（云蝠系统内重新生成）
+2. Token 是否已过期（系统内重新生成）
 3. 账号是否有权限访问任务
 
 请重新生成并提供最新的 token 信息
@@ -360,7 +360,7 @@ telrobot-cli task list --page 1 --size 5
    ```
 4. **Token 未配置**：Agent 输出引导文本
    ```
-   请提供云蝠系统内配置AI助理下生成的token信息
+   请提供系统内配置AI助理下生成的token信息
    ```
 5. **用户提供 Token 后**：Agent 自动配置并验证
    ```bash
@@ -391,7 +391,7 @@ Agent 检测环境未初始化
     ↓
 Agent 执行 setup 脚本
     ↓
-Agent 提示："请提供云蝠系统内配置AI助理下生成的token信息"
+Agent 提示："请提供系统内配置AI助理下生成的token信息"
     ↓
 用户提供 Token
     ↓
@@ -484,7 +484,7 @@ https://releases.telrobot.com/latest
 For API token configuration, you can:
 
 1. **Agent 引导用户提供**（推荐）：
-   - 初始化完成后，Agent 自动在对话中输出：`请提供云蝠系统内配置AI助理下生成的token信息`
+   - 初始化完成后，Agent 自动在对话中输出：`请提供系统内配置AI助理下生成的token信息`
    - 用户提供 Token 后，Agent 执行：`telrobot-cli config set-token <token>`
 
 2. Set during initialization via environment variable:
@@ -534,7 +534,7 @@ node scripts/setup.js
    telrobot-cli config set-token <your-token>
     ↓
 [Agent 在对话中输出]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
     ↓
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -566,7 +566,7 @@ test -f ~/.telrobot-cli/bin/telrobot-cli && echo "EXISTS" || echo "MISSING"
 node scripts/setup.js
     ↓
 [Agent 在对话中输出]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
     ↓
 [用户提供 Token]
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -630,7 +630,7 @@ telrobot-cli task list --page 1 --size 20
 [用户安装 telrobot-number Skill]
     ↓
 [Agent 自动初始化环境 + 提示 Token]
-请提供云蝠系统内配置AI助理下生成的token信息
+请提供系统内配置AI助理下生成的token信息
     ↓
 [用户提供 Token]
 xxx-token-xxx

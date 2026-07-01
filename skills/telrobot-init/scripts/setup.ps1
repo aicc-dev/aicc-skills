@@ -2,6 +2,10 @@
 # 用于没有 Node.js 的 Windows 用户
 # 运行方式: powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
+param(
+    [switch]$Force
+)
+
 $ErrorActionPreference = "Stop"
 
 $DEFAULT_BASE_URL = "https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest"
@@ -21,7 +25,6 @@ $assetName = "telrobot-windows-${normalizedArch}.exe"
 $telrobotHome = if ($env:TELROBOT_HOME) { $env:TELROBOT_HOME } else { Join-Path $HOME ".telrobot-cli" }
 $binDir       = if ($env:TELROBOT_BIN_DIR) { $env:TELROBOT_BIN_DIR } else { Join-Path $telrobotHome "bin" }
 $destination  = Join-Path $binDir "telrobot-cli.exe"
-$configPath   = if ($env:TELROBOT_CONFIG_PATH) { $env:TELROBOT_CONFIG_PATH } else { Join-Path $telrobotHome "config.yaml" }
 
 $baseUrl = if ($env:TELROBOT_DOWNLOAD_BASE_URL) {
     $env:TELROBOT_DOWNLOAD_BASE_URL.TrimEnd("/")
@@ -30,8 +33,6 @@ $baseUrl = if ($env:TELROBOT_DOWNLOAD_BASE_URL) {
 }
 $url = "${baseUrl}/${assetName}"
 
-$token  = $env:TELROBOT_TOKEN
-
 # ── Dry-run 模式 ─────────────────────────────────────────────────
 if ($env:TELROBOT_SETUP_DRY_RUN -eq "1") {
     Write-Host "platform: windows"
@@ -39,7 +40,12 @@ if ($env:TELROBOT_SETUP_DRY_RUN -eq "1") {
     Write-Host "asset: $assetName"
     Write-Host "url: $url"
     Write-Host "destination: $destination"
-    Write-Host "config path: $configPath"
+    exit 0
+}
+
+if (-not $Force -and (Test-Path $destination)) {
+    Write-Host "✅ Telrobot CLI already exists, skipping download: $destination"
+    Write-Host "ℹ️  Config is managed by telrobot-cli config commands; setup.ps1 does not write config.yaml."
     exit 0
 }
 
@@ -56,19 +62,5 @@ try {
     exit 1
 }
 
-# ── 写入配置 ─────────────────────────────────────────────────────
-New-Item -ItemType Directory -Force -Path (Split-Path $configPath) | Out-Null
-
-# 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
-$configContent = @"
-auth:
-  token: $token
-output:
-  format: table
-"@
-
-Set-Content -Path $configPath -Value $configContent -Encoding UTF8
-
 Write-Host "✅ Installed Telrobot CLI: $destination"
-Write-Host "📝 Wrote config: $configPath"
-Write-Host "🚀 Ready to use! Agents will read executablePath from config."
+Write-Host "ℹ️  Config is managed by telrobot-cli config commands; setup.ps1 does not write config.yaml."

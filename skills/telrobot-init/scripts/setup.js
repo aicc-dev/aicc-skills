@@ -5,6 +5,7 @@ const https = require("node:https");
 const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 //后续根据实际上传地址修改
 const defaultBaseUrl = "https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest";
@@ -73,59 +74,117 @@ function getDestination(assetName, binDir) {
   return path.join(binDir, executableName);
 }
 
-function getConfigPath(telrobotHome) {
-  // CLI 实际读取的配置文件路径：~/.telrobot-cli/config.yaml
-  return process.env.TELROBOT_CONFIG_PATH || path.join(telrobotHome, "config.yaml");
-}
-
-function writeConfig(configPath, executablePath, token) {
-  fs.mkdirSync(path.dirname(configPath), { recursive: true });
-
-  // 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
-  const configLines = [
-    'auth:',
-    `  token: ${token || ''}`,
-    'output:',
-    '  format: table',
-  ];
-
-  fs.writeFileSync(configPath, configLines.join('\n') + '\n');
-}
-
-// 检测环境是否已初始化
-function isEnvironmentInitialized(destination, configPath) {
-  const cliExists = fs.existsSync(destination);
-  const configExists = fs.existsSync(configPath);
-
-  if (!cliExists || !configExists) {
-    return { initialized: false, cliExists, configExists };
+function parseArgValue(args, name) {
+  const index = args.indexOf(name);
+  if (index === -1) {
+    return "";
   }
-
-  return { initialized: true, cliExists: true, configExists: true };
+  return args[index + 1] || "";
 }
 
-// 智能初始化（自动初始化除 Token 外的所有配置）
-async function smartInit(options = {}) {
-  const { skipCheck = false } = options;
+function hasArg(args, name) {
+  return args.includes(name);
+}
+
+function isTruthy(value) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").toLowerCase());
+}
+
+function isDevMode(args) {
+  return hasArg(args, "--dev") || isTruthy(process.env.TELROBOT_DEV);
+}
+
+function isCliInstalled(destination) {
+  const cliExists = fs.existsSync(destination);
+  return { initialized: cliExists, cliExists };
+}
+
+function getInstallContext() {
   const target = resolveTarget();
   const assetName = getAssetName(target);
-  const url = `${getBaseUrl()}/${assetName}`;
   const telrobotHome = getTelrobotHome();
   const binDir = getBinDir(telrobotHome);
   const destination = getDestination(assetName, binDir);
-  const configPath = getConfigPath(telrobotHome);
-  const apiUrl = process.env.TELROBOT_API_URL;
-  const token = process.env.TELROBOT_TOKEN;
 
-  // 检查环境状态
-  const status = isEnvironmentInitialized(destination, configPath);
+  return { target, assetName, telrobotHome, binDir, destination };
+}
 
-  if (status.initialized && skipCheck) {
-    console.log("✅ 环境已初始化，无需重复配置");
-    return true;
+function findDefaultCliSource() {
+  const bases = [process.cwd(), __dirname];
+  try {
+    bases.push(fs.realpathSync(__dirname));
+  } catch {
+    // Ignore realpath failures and use the literal script path candidates.
   }
 
-  if (!status.cliExists) {
+  const seen = new Set();
+  for (const base of bases) {
+    let current = path.resolve(base);
+    while (!seen.has(current)) {
+      seen.add(current);
+      const candidate = path.join(current, "telrobot-saas-go", "telrobot-saas-cli");
+      if (fs.existsSync(path.join(candidate, "go.mod"))) {
+        return candidate;
+      }
+
+      const parent = path.dirname(current);
+      if (parent === current) {
+        break;
+      }
+      current = parent;
+    }
+  }
+
+  return "";
+}
+
+function resolveCliSource(args) {
+  const explicitSource = parseArgValue(args, "--cli-source") || process.env.TELROBOT_CLI_SOURCE || "";
+  const cliSource = explicitSource ? path.resolve(explicitSource) : findDefaultCliSource();
+
+  if (!cliSource || !fs.existsSync(path.join(cliSource, "go.mod"))) {
+    throw new Error(
+      "DEV mode requires local telrobot-saas-cli source; pass --cli-source <path> or set TELROBOT_CLI_SOURCE",
+    );
+  }
+
+  return cliSource;
+}
+
+function buildLocalCli(cliSource, destination) {
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  console.log("🔨 DEV 模式：从本地源码编译 Telrobot CLI...");
+  console.log(`📂 源码目录: ${cliSource}`);
+  execFileSync("go", ["build", "-o", destination, "."], {
+    cwd: cliSource,
+    stdio: "inherit",
+  });
+  if (process.platform !== "win32") {
+    fs.chmodSync(destination, 0o755);
+  }
+  console.log(`✅ 已安装本地编译 Telrobot CLI: ${destination}`);
+}
+
+function checkEnvironmentOnly() {
+  const { destination } = getInstallContext();
+  const status = isCliInstalled(destination);
+
+  console.log(`Telrobot CLI: ${status.cliExists ? "present" : "missing"} (${destination})`);
+
+  if (!status.initialized) {
+    process.exitCode = 1;
+  }
+}
+
+async function installCli(options = {}) {
+  const { force = false, devMode = false, cliSource = "" } = options;
+  const { assetName, destination } = getInstallContext();
+  const url = `${getBaseUrl()}/${assetName}`;
+  const status = isCliInstalled(destination);
+
+  if (devMode) {
+    buildLocalCli(cliSource, destination);
+  } else if (force || !status.cliExists) {
     console.log("📥 正在下载 Telrobot CLI...");
     console.log(`🔗 URL: ${url}`);
     await download(url, destination);
@@ -134,25 +193,8 @@ async function smartInit(options = {}) {
     console.log("✅ Telrobot CLI 已存在，跳过下载");
   }
 
-  if (!status.configExists) {
-    console.log("📝 正在生成配置文件...");
-    writeConfig(configPath, destination, token || '');
-    console.log(`📝 已创建配置文件: ${configPath}`);
-  } else {
-    console.log("✅ 配置文件已存在，跳过创建");
-  }
-
-  console.log("🚀 环境初始化完成");
-
-  // Token 配置提示
-  if (!token) {
-    console.log("\n🔐 下一步：配置认证 Token");
-    console.log("  telrobot-cli config set-token <your-token>");
-  } else {
-    console.log("\n✅ Token 已通过环境变量配置");
-  }
-
-  return true;
+  console.log("🚀 Telrobot CLI 安装完成");
+  console.log("ℹ️  配置文件由 telrobot-cli config 命令维护，setup 脚本不会写入 config.yaml");
 }
 
 function download(url, destination) {
@@ -199,51 +241,32 @@ async function main() {
   const args = process.argv.slice(2);
   const isCheckMode = args.includes('--check');
   const isDryRun = process.env.TELROBOT_SETUP_DRY_RUN === "1";
+  const devMode = isDevMode(args);
+  const force = args.includes('--force');
 
-  // 智能初始化模式（推荐）
-  if (isCheckMode || !args.includes('--force')) {
-    await smartInit({ skipCheck: isCheckMode });
+  if (isCheckMode) {
+    checkEnvironmentOnly();
     return;
   }
 
-  // 强制重新安装模式（传统模式）
-  const target = resolveTarget();
-  const assetName = getAssetName(target);
-  const url = `${getBaseUrl()}/${assetName}`;
-  const telrobotHome = getTelrobotHome();
-  const binDir = getBinDir(telrobotHome);
-  const destination = getDestination(assetName, binDir);
-  const configPath = getConfigPath(telrobotHome);
-  const token = process.env.TELROBOT_TOKEN;
+  const cliSource = devMode ? resolveCliSource(args) : "";
 
   if (isDryRun) {
+    const { target, assetName, destination } = getInstallContext();
+    const url = `${getBaseUrl()}/${assetName}`;
     console.log(`platform: ${target.platform}`);
     console.log(`arch: ${target.arch}`);
     console.log(`asset: ${assetName}`);
     console.log(`url: ${url}`);
     console.log(`destination: ${destination}`);
-    console.log(`config path: ${configPath}`);
+    if (devMode) {
+      console.log(`dev mode: true`);
+      console.log(`cli source: ${cliSource}`);
+    }
     return;
   }
 
-  console.log(`📥 Downloading Telrobot CLI for ${target.platform}-${target.arch}...`);
-  console.log(`🔗 URL: ${url}`);
-
-  await download(url, destination);
-  writeConfig(configPath, destination, token);
-
-  console.log(`✅ Installed Telrobot CLI: ${destination}`);
-  console.log(`📝 Wrote config: ${configPath}`);
-  
-  // 检查是否配置了 Token
-  if (!token) {
-    console.log('\n⚠️  Token 未配置，请执行以下命令：');
-    console.log('   telrobot-cli config set-token <your-token>');
-    console.log('\n或使用环境变量一次性完成：');
-    console.log('   TELROBOT_TOKEN=your-token node scripts/setup.js');
-  } else {
-    console.log('🚀 Ready to use! Agents will read executablePath from config.');
-  }
+  await installCli({ force, devMode, cliSource });
 }
 
 main().catch((error) => {

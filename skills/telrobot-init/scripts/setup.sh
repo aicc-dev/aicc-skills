@@ -1,8 +1,28 @@
 #!/bin/sh
 set -eu
 
-
 DEFAULT_BASE_URL="https://oss-telrobot.oss-cn-hangzhou.aliyuncs.com/go/latest"
+force=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --force)
+      force=1
+      shift
+      ;;
+    --mode|--profile|--profiles|--current-profile)
+      # Legacy setup flags are ignored. Profile/config changes belong to telrobot-cli.
+      if [ "$#" -gt 1 ]; then
+        shift 2
+      else
+        shift
+      fi
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
 
 normalize_platform() {
   case "$1" in
@@ -37,19 +57,6 @@ url="${base_url}/${asset}"
 telrobot_home="${TELROBOT_HOME:-"$HOME/.telrobot-cli"}"
 bin_dir="${TELROBOT_BIN_DIR:-"$telrobot_home/bin"}"
 destination="${bin_dir}/telrobot-cli"
-config_path="${TELROBOT_CONFIG_PATH:-"$telrobot_home/config.yaml"}"
-
-write_config() {
-  mkdir -p "$(dirname "$config_path")"
-
-  # 写入 YAML 格式配置（仅保留用户可变配置，baseURL 在 CLI 代码内部硬编码）
-  cat > "$config_path" <<EOF
-auth:
-  token: ${TELROBOT_TOKEN:-}
-output:
-  format: table
-EOF
-}
 
 if [ "${TELROBOT_SETUP_DRY_RUN:-}" = "1" ]; then
   printf "platform: %s\n" "$platform"
@@ -57,7 +64,12 @@ if [ "${TELROBOT_SETUP_DRY_RUN:-}" = "1" ]; then
   printf "asset: %s\n" "$asset"
   printf "url: %s\n" "$url"
   printf "destination: %s\n" "$destination"
-  printf "config path: %s\n" "$config_path"
+  exit 0
+fi
+
+if [ "$force" -ne 1 ] && [ -f "$destination" ]; then
+  printf "✅ Telrobot CLI already exists, skipping download: %s\n" "$destination"
+  printf "ℹ️  Config is managed by telrobot-cli config commands; setup.sh does not write config.yaml.\n"
   exit 0
 fi
 
@@ -76,17 +88,6 @@ else
 fi
 
 chmod +x "$destination"
-write_config
 
 printf "✅ Installed Telrobot CLI: %s\n" "$destination"
-printf "📝 Wrote config: %s\n" "$config_path"
-
-# 检查是否配置了 Token
-if [ -z "${TELROBOT_TOKEN:-}" ]; then
-  printf "\n⚠️  Token 未配置，请执行以下命令：\n"
-  printf "   telrobot-cli config set-token <your-token>\n"
-  printf "\n或使用环境变量一次性完成：\n"
-  printf "   TELROBOT_TOKEN=your-token %s\n" "$0"
-else
-  printf "🚀 Ready to use! Agents will read executablePath from config.\n"
-fi
+printf "ℹ️  Config is managed by telrobot-cli config commands; setup.sh does not write config.yaml.\n"

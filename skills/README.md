@@ -17,7 +17,9 @@ skills/
 │       └── profile-current.js                   # 切换当前 profile
 ├── telrobot-task/                               # 任务管理技能
 │   └── SKILL.md                                 # 技能定义
-└── telrobot-number/                             # 号码管理技能
+├── telrobot-number/                             # 号码管理技能
+│   └── SKILL.md                                 # 技能定义
+└── telrobot-crm/                                # CRM 客户导入技能
     └── SKILL.md                                 # 技能定义
 ```
 
@@ -90,7 +92,7 @@ skills/
 **功能**:
 - 查看、添加、更新号码
 - 批量导入号码
-- 文件导入号码：调用 `telrobot-cli number import-file` 将 `.txt/.csv/.excel/.xlsx` 转为 origin JSON，再按 500 条/批导入；`.xls` 需先转换为标准 `.xlsx`
+- 文件导入号码：调用 `telrobot-cli number import-file` 解析 `.txt/.csv/.excel/.xlsx` 并按 500 条/批导入；本地仅保存 manifest、checkpoint、NDJSON 失败明细和最终报告，`.xls` 需先转换为标准 `.xlsx`
 - 呼入任务禁止导入号码；选择导入目标时必须提示用户改选外呼任务
 - 单批导入号码数量达到或超过 50000 条时，必须使用后台异步文件导入
 - 删除号码、批量重置号码、批量删除号码接口尚未完全验证，当前暂不可用
@@ -106,6 +108,26 @@ skills/
 批量导入号码
 导入号码
 ```
+
+---
+
+### 4. telrobot-crm（CRM 客户导入）
+
+**路径**: `telrobot-crm/SKILL.md`
+
+**用途**: 从图片、纯文本或 Excel 向 CRM 公海导入客户
+
+**功能**:
+- 图片只由多模态模型提取结构化姓名和手机号，模糊或多客户时先确认
+- 纯文本抽取全部姓名手机号对，并逐条执行 `telrobot-cli crm add`
+- Excel 只把路径交给 `crm prepare-file`；非标准文件确认前禁止上传
+- 未匹配字段只进入 `ignored_fields`，不自动创建 CRM 字段
+- 文件状态区分处理中、全部成功、部分成功和失败
+
+**使用场景**:
+- 导入 CRM 客户
+- 从截图、文本或客户表格写入 CRM 公海
+- 查询 CRM 文件导入状态
 
 ---
 
@@ -268,7 +290,7 @@ profiles:
       token: another-user-token
 ```
 
-profile 表示不同用户身份。未指定 profile 时，CLI 按 `--profile`、`TELROBOT_PROFILE`、`current`、单 profile 自动选择的顺序解析。新增或更新 profile token 使用 `telrobot-cli config profile set-token <别名> <token>`。
+profile 表示不同用户身份。未指定 profile 时，CLI 按 `--profile`、`TELROBOT_PROFILE`、`current`、单 profile 自动选择的顺序解析。新增或更新正式站 profile token 使用 `telrobot-cli config profile set-token <别名> <token> --environment prod`。
 
 **配置方式**:
 
@@ -285,14 +307,14 @@ telrobot-cli config init
 3. **环境变量**：
 ```bash
 node skills/telrobot-init/scripts/setup.js
-telrobot-cli config set-token abc123
-telrobot-cli config profile set-token 张三 abc123
+telrobot-cli config set-token abc123 --environment prod
+telrobot-cli config profile set-token 张三 abc123 --environment prod
 telrobot-cli config profile use 张三
 ```
 
 如果只是切换默认用户/profile，使用 `telrobot-cli config profile use <别名>`，不需要重新初始化或重新下载 CLI。
 
-如果只是补充或更新某个 profile 的 token，使用 `telrobot-cli config profile set-token <别名> <token>`；profile 不存在时 CLI 会自动创建。
+如果只是补充或更新某个正式站 profile 的 token，使用 `telrobot-cli config profile set-token <别名> <token> --environment prod`；profile 不存在时 CLI 会自动创建。
 
 ---
 

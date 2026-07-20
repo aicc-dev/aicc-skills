@@ -1,7 +1,7 @@
 {
   "name": "telrobot-skills",
-  "version": "2.2.0",
-  "description": "Telrobot agent skill package for installation with npx skills add. Provides telrobot:init, telrobot:task, and telrobot:number skills for CLI environment initialization, task management, and number operations.",
+  "version": "2.3.0",
+  "description": "用于通过 npx skills add 安装的 Telrobot Agent Skills 包，提供 telrobot:init、telrobot:task、telrobot:number 和 telrobot:crm，覆盖 CLI 环境初始化、任务管理、号码管理与 CRM 公海客户导入。",
   "private": true,
   "files": [
     "skills/"
@@ -21,6 +21,7 @@
     "agent-skills",
     "task-management",
     "number-management",
+    "crm-import",
     "voice-robot",
     "outbound-calls"
   ]

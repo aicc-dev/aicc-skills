@@ -1,11 +1,11 @@
 ---
 name: telrobot:number
-description: Use this skill for Telrobot CLI number management operations including listing, searching, adding, updating, and batch importing (.xlsx/.excel/CSV/TXT supported with old template compatibility and --auto-convert intelligent column mapping; .xls must be converted to standard .xlsx first) numbers within a task. Automatically initializes CLI environment on first use.
+description: 用于通过 Telrobot CLI 管理任务号码，包括列表、搜索、新增、更新和文件批量导入。支持兼容旧模板的 .xlsx、.excel、CSV 和 TXT，并可通过 --auto-convert 智能映射列；.xls 必须先转换为标准 .xlsx。首次使用时自动初始化 CLI 环境。
 ---
 
 # Telrobot Number
 
-This skill provides comprehensive number (contact) management for Telrobot CLI. All number operations are scoped to a specific task by task ID.
+此 Skill 为 Telrobot CLI 提供完整的号码和联系人管理能力，所有号码操作都通过任务 ID 限定在指定任务内。
 
 ## Profile 选择
 
@@ -65,14 +65,39 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 
 ## ⚠️ 前置环境检查（MUST CHECK）
 
-**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境和终端编码状态**：
+**每次使用此 Skill 前，Agent 必须自动检查 skill 版本、CLI 版本、CLI 环境和终端编码状态**：
 
-**第一步：检查 CLI 环境**（下列 3 项允许并行）：
+**第一步：检查 Skill 版本更新**：
+
+```bash
+node scripts/setup.js --skill-update-check
+```
+
+执行规则：
+- 仅当仓库存在新版时才提醒；当前版本已是最新时保持静默，不产生每日提醒。
+- 如果脚本输出 `skill版本已更新，是否需要帮您更新？`，Agent 必须询问用户是否更新。
+- 如果用户同意，执行 `node scripts/setup.js --skill-update-apply --agent <agent-name>`，然后继续用户原始请求。
+- 如果用户拒绝或暂不更新，继续用户原始请求；只要新版仍未安装，该提醒每天最多触发一次。
+- 如果检查失败或 Node.js 不可用，静默跳过，不影响业务命令。
+
+**第二步：检查 CLI 版本更新**：
+
+```bash
+node scripts/setup.js --cli-update-check
+```
+
+执行规则：
+- CLI 未安装、当前版本已是最新或检查失败时保持静默。
+- 如果脚本输出 `telrobot-saas-cli版本已更新，是否需要帮您更新？`，Agent 必须询问用户是否更新。
+- 如果用户同意，执行 `node scripts/setup.js --cli-update-apply`，然后继续用户原始请求。
+- 如果用户拒绝或暂不更新，继续用户原始请求；只要新版仍未安装，该提醒每天最多触发一次。
+
+**第三步：检查 CLI 环境**（下列 3 项允许并行）：
 1. 检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
 2. 检查 `~/.telrobot-cli/config.yaml` 是否存在
 3. 检查配置中 Token 是否已配置
 
-**第二步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
+**第四步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
 
 ```bash
 echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
@@ -208,7 +233,7 @@ agent 只能使用本文档明确列出的 `telrobot-cli` 命令和参数。禁�
 
 - 严禁读取或输出 `~/.telrobot-cli/config.yaml` 的文件内容
 - 严禁读取或输出 token、Cookie、密钥或任何凭证字符串
-- Token 配置只能通过 `telrobot-cli config set-token <token>` 完成，不得手动写入配置文件
+- Token 配置只能通过 `telrobot-cli config set-token <token> --environment prod` 完成，不得手动写入配置文件
 - 初始化完成展示时，只允许展示 CLI 路径、平台信息、Token 配置状态（已配置/未配置），不得展示 token 值或 baseURL
 
 ### 6. 安全响应模板
@@ -356,7 +381,7 @@ telrobot-cli task list
 
 **重要提示**：当用户提供 Excel 文件时，Agent **必须直接将文件路径传给 CLI**，不要尝试自行读取、解析或转换 Excel 内容。CLI 的 `format-template` 和 `import-file` 命令内置完整处理能力，包括旧模板兼容、多号码列识别和动态字段匹配。
 
-**大文件导入规则**：如果 CLI 转换/解析结果显示本批次需要导入的号码数量 `>= 50000`，必须选择后台异步文件导入，不得继续本地分批同步导入。CLI 的 `number import-file` 会在解析出数量后自动切换到异步导入；Agent 看到“达到 50000 条阈值，自动切换为后台异步文件导入”提示时，应向用户展示导入任务 ID，并提示可用 `telrobot-cli number import-status <导入任务ID>` 查询进度。
+**大文件导入规则**：如果 CLI 转换/解析结果显示本批次需要导入的号码数量 `>= 50000`，必须选择后台异步文件导入，不得继续本地分批同步导入。CLI 的 `number import-file` 会在解析出数量后自动切换到异步导入；Agent 看到“达到 50000 条阈值，自动切换为后台异步文件导入”提示时，应向用户展示导入任务 ID，并继续执行 `telrobot-cli number import-wait <导入任务ID> --timeout 30m --output json` 等待结果。
 
 #### 3. 确认是否同步到CRM（MANDATORY）
 
@@ -449,7 +474,7 @@ Agent: 好的，仅使用联系电话1列的号码（--phone-column="联系电�
 
 #### 6. 调用 CLI 导入文件
 
-使用 CLI 内置导入命令处理文件解析、origin JSON 生成、批次导入和进度记录。
+使用 CLI 内置导入命令处理文件解析、批次导入、断点进度和结果记录。CLI 不再保存重复的完整 origin/tmp/success JSON。
 **根据步骤3和步骤5中用户的选择，必须显式传入对应参数**：
 
 **用户选择同步到CRM（步骤3） + 指定号码列（步骤5）**：
@@ -526,24 +551,7 @@ $ telrobot-cli number batch-add <任务ID> "13800138000,13900139000"  # Agent �
 $ telrobot-cli number import-file <任务ID> /path/to/numbers.xlsx  # Agent 应该这样做
 ```
 
-CLI 会生成 origin 文件，文件名格式：
-
-```text
-origin_userid_task_id_job_id_时间.json
-```
-
-JSON 内容格式：
-
-```json
-[
-  {
-    "phone": "13800138001",
-    "source_row": 1
-  }
-]
-```
-
-CSV/Excel 有姓名、公司或额外列时，CLI 会保留到同一条记录中。
+CSV/Excel 有姓名、公司或额外列时，CLI 在内存中保留到同一条标准记录并分批提交。成功记录只累计数量，不在本地重复保存完整客户数据。
 
 #### 7. CLI 导入行为
 
@@ -566,31 +574,36 @@ telrobot-cli number import-file <任务ID> <用户号码文件> --to-crm=<true|f
 - `--skip-error`：跳过错误号码并继续导入，默认 `true`
 - `--auto-convert`：Excel 自动整理为标准模板，默认 `true`
 - `--dry-run`：只生成文件和进度，不写入服务端，测试时使用
+- `--artifact-dir`：可选的 V2 导入工件目录覆盖。Agent 默认不传，使用 `~/.telrobot-cli/imports`；用户明确要求项目内存储时必须传项目绝对路径，禁止使用依赖当前工作目录的 `./.telrobot/imports`
 
 强制异步导入标准模板文件时使用：
 ```bash
 telrobot-cli number import-async <任务ID> <标准模板文件> --to-crm=<true|false>
 ```
 
-同步到 CRM 时同样追加 `--crm-flow=pool`。异步导入提交成功后，CLI 会输出 `导入任务ID`，用它查询后台进度：
+同步到 CRM 时同样追加 `--crm-flow=pool`。异步导入提交成功后，CLI 会输出 `文件ID`、`导入任务ID` 和本地 `async.json` 记录路径。Agent 默认继续等待最终结果：
 ```bash
-telrobot-cli number import-status <导入任务ID>
+telrobot-cli number import-wait <导入任务ID> --timeout 30m --output json
 ```
 
-CLI 会生成并维护以下文件：
+只有用户明确要求“只提交、不等待”时，Agent 才能在提交成功后停止轮询。等待超时不代表失败，Agent 必须返回“仍在处理中”、导入任务 ID，以及下面的继续查询命令：
 
-默认过程文件放在 `~/.telrobot-cli/tmp`（如果设置 `TELROBOT_HOME`，则放在 `$TELROBOT_HOME/tmp`）：
+```bash
+telrobot-cli number import-status <导入任务ID> --output json
+```
 
-- `origin_userid_task_id_job_id_时间.json`：origin 标准化输入
-- `origin_userid_task_id_job_id_时间_tmp.json`：origin 文件备份/执行输入快照
-- `userid_task_id_job_id_时间_fail.json`：导入失败的号码和失败原因
-- `userid_task_id_job_id_时间_progress.json`：导入进度、成功数、失败数、当前批次
+同步分批导入默认使用固定 V2 工件目录：`~/.telrobot-cli/imports/<用户_任务_job>/`。设置 `TELROBOT_HOME` 时使用 `$TELROBOT_HOME/imports/<用户_任务_job>/`。CLI 也支持 `TELROBOT_IMPORT_DIR`，路径优先级为 `--artifact-dir` > `TELROBOT_IMPORT_DIR` > `$TELROBOT_HOME/imports` > `~/.telrobot-cli/imports`：
 
-默认最终报告放在 `~/.telrobot-cli/import_results`（如果设置 `TELROBOT_HOME`，则放在 `$TELROBOT_HOME/import_results`）：
+- `manifest.json`：任务参数、源文件和标准记录 SHA-256、创建时间；不包含完整客户记录
+- `checkpoint.json`：已处理位置、当前批次、成功数、失败数和状态，使用原子替换写入
+- `failures.ndjson`：失败记录，一行一个 JSON，只追加写入
+- `report.json`：最终汇总和上述工件路径
 
-- `userid_task_id_job_id_时间_report.json`：最终导入报告，包含 `job_id`、总数、成功数、失败数、批次、输入文件、origin/tmp/fail/progress 路径等信息
+所有 V2 工件使用 `0600` 文件权限。CLI 不再生成重复的 `origin.json`、`origin_tmp.json` 和 `success.json`。Excel 自动整理后的标准模板仍放在 `~/.telrobot-cli/excel`。
 
-Excel 自动整理后的标准模板默认放在 `~/.telrobot-cli/excel`。同步分批导入完成后，CLI 会移除中间文件 `userid_task_id_job_id_时间_success.json`，成功数量以 `progress.json` 和最终 `report.json` 为准。
+后台异步导入在同一个默认 imports 目录中只保存一份轻量记录：`async_<任务ID>_<导入任务ID>/async.json`。它只包含 `unique_id`、`file_id`、任务 ID、源文件路径、CRM 选项、最近一次状态和计数，不保存完整客户行。每次执行 `import-status` 或 `import-wait` 都会原子更新该文件；本地写入失败只告警，不能把已经提交成功的后台任务误报为提交失败，否则可能导致重复导入。
+
+用户明确要求项目内存储时，Agent 必须传项目绝对路径，并确认项目 `.gitignore` 忽略对应目录，禁止把包含客户号码或失败原因的导入工件提交到 Git。
 
 #### 8. 实时展示要求
 
@@ -602,11 +615,11 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 - 失败数量
 - 当前批次 / 总批次
 
-同步分批导入时，如果某个批次失败，CLI 会把失败号码写入 fail 文件。默认 `--skip-error=true` 会继续后续批次；只有传 `--skip-error=false` 时，失败后停止后续批次。最终如果存在失败记录，CLI 退出码为 `2`，Agent 必须将失败文件路径展示给用户。
+同步分批导入时，如果某个批次失败，CLI 会把失败号码追加写入 `failures.ndjson`。默认 `--skip-error=true` 会继续后续批次；只有传 `--skip-error=false` 时，失败后停止后续批次。最终如果存在失败记录，CLI 退出码为 `2`，Agent 必须将失败文件路径展示给用户。
 
-异步导入时，Agent 必须展示 CLI 输出的 `文件ID`、`导入任务ID`、`状态` 和 `telrobot-cli number import-status <导入任务ID>` 查询命令；用户要求查看进度时必须调用 `import-status` 并展示后台状态、总行数、已处理、成功、失败和错误信息。
+异步导入时，Agent 必须展示 CLI 输出的 `文件ID`、`导入任务ID`、`状态` 和本地记录路径，并默认调用 `import-wait` 等待终态。轮询结果必须展示总行数、已处理、跳过、成功、失败、阶段、耗时和错误摘要。最终失败数量大于 0 时，Agent 必须使用 `telrobot-cli number import-failures <文件ID> --output json` 查询失败明细；不得把状态接口最多返回的错误摘要当成完整失败列表。
 
-同步分批导入完成后，Agent 必须优先展示最终 `report.json` 路径；如存在失败记录，同时展示 `fail.json` 路径和失败数量。异步导入提交完成后，Agent 必须优先展示后台 `导入任务ID` 和 `import-status` 查询命令。
+同步分批导入完成后，Agent 必须优先展示最终 `report.json` 路径；如存在失败记录，同时展示 `failures.ndjson` 路径和失败数量。异步导入必须优先展示后台 `导入任务ID`、本地 `async.json` 路径和最终轮询结果；等待超时时展示 `import-status` 继续查询命令。
 
 #### 9. 导入结果强制汇报（MANDATORY）
 
@@ -638,8 +651,8 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 • 导入成功：998 条
 • 导入失败：2 条（号码已存在 1 条 / 格式异常 1 条）
 
-报告文件：~/.telrobot-cli/import_results/xxx_report.json
-失败文件：~/.telrobot-cli/tmp/xxx_fail.json（共 2 条失败记录）
+报告文件：~/.telrobot-cli/imports/user_task_job/report.json
+失败文件：~/.telrobot-cli/imports/user_task_job/failures.ndjson（共 2 条失败记录）
 ```
 
 异步导入只代表任务已提交到后台，不能承诺最终成功数量。此时汇报内容必须包含：
@@ -649,12 +662,14 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 | **文件ID** | 服务端上传文件 ID |
 | **导入任务ID** | 后台导入 `unique_id` |
 | **状态** | 当前后台任务状态 |
+| **等待命令** | `telrobot-cli number import-wait <导入任务ID> --timeout 30m` |
 | **查询命令** | `telrobot-cli number import-status <导入任务ID>` |
+| **本地记录** | `~/.telrobot-cli/imports/async_<任务ID>_<导入任务ID>/async.json` |
 
 **处理过程详解（MANDATORY）**：Agent **必须**在汇报中主动说明数据处理过程，告知用户哪些数据因为什么原因被过滤，避免用户产生误解。具体要求：
 
 1. **解析阶段过滤说明**：如果文件中的数据行数大于解析到的号码数，必须明确说明差异原因
-2. **失败原因分类**：若存在失败记录，必须读取 `fail.json` 并按失败原因分类展示
+2. **失败原因分类**：若存在失败记录，必须读取 `failures.ndjson` 并按失败原因分类展示
 3. **主动消除误解**：对常见的过滤场景给出明确解释
 
 **常见数据过滤原因**（Agent 应在汇报中引用对应说明）：
@@ -670,13 +685,13 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 | Excel说明行被跳过 | 旧模板格式第1行为说明行，非数据行，自动跳过 | 否，属模板兼容 |
 | 未匹配列被忽略 | Excel中的列名不在标准模板字段中，该列数据不导入 | 可通过 format-template 整理 |
 
-**Agent 读取 fail.json 的行为规则**：
-- `fail.json` 是 CLI 生成的导入失败记录文件（非用户原始号码文件），Agent **允许读取**该文件以获取具体失败原因
-- Agent 应按 `reason` 字段对失败记录进行分类统计，例如："号码已存在 3 条"、"格式异常 2 条"
+**Agent 读取 failures.ndjson 的行为规则**：
+- `failures.ndjson` 是 CLI 生成的导入失败记录文件（非用户原始号码文件），Agent **允许读取**该文件以获取具体失败原因
+- 每行是一个独立 JSON 对象，Agent 应按 `reason` 字段分类统计，例如："号码已存在 3 条"、"格式异常 2 条"；`batch_index` 仅用于定位批次
 - **禁止读取用户原始号码文件**（.xlsx/.csv/.txt），此限制不变
 
 **失败情况处理**：
-- 若失败数量 > 0，必须读取 `fail.json`，按原因分类展示失败详情，并告知用户可查看完整失败记录
+- 若失败数量 > 0，必须读取 `failures.ndjson`，按原因分类展示失败详情，并告知用户可查看完整失败记录
 - 若过滤数量 > 0，必须说明被过滤数据的原因，消除用户"数据丢失"的误解
 - 若失败数量 = 0 且过滤数量 = 0，仅展示 report.json 路径和成功数量即可
 - 若全部失败，提示用户检查文件格式或号码合法性，并展示具体失败原因分类
@@ -689,17 +704,39 @@ Agent 必须实时展示 `telrobot-cli number import-file` 的 stdout/stderr 进
 telrobot-cli number import-job <job_id>
 ```
 
-该命令固定读取默认 `~/.telrobot-cli/import_results/*_report.json`（或 `$TELROBOT_HOME/import_results/*_report.json`），展示总号码数、已处理数量、成功数量、失败数量、批次大小、总批次数、报告文件、失败文件和进度文件。需要机器可读结果时使用 `--json`。
+该命令默认读取 `~/.telrobot-cli/imports/*/report.json`，并兼容读取旧版 `~/.telrobot-cli/import_results/*_report.json`。只有导入时显式覆盖过工件目录，查询时才需要传入相同的 `--artifact-dir`。命令展示总号码数、已处理数量、成功数量、失败数量、批次大小、总批次数、报告文件、失败文件和 checkpoint；需要机器可读结果时使用 `--json`。
 
-#### 11. 按后台导入任务ID查询异步结果
+#### 11. 跟踪后台异步导入结果
 
-如果用户要查看后台异步导入进度，执行：
+提交后默认等待最终结果：
 
 ```bash
-telrobot-cli number import-status <导入任务ID>
+telrobot-cli number import-wait <导入任务ID> --timeout 30m --output json
 ```
 
-该命令调用服务端后台导入状态接口，展示任务ID、文件ID、状态、阶段、总行数、已处理、成功、失败、提示和错误信息。需要机器可读结果时使用 `--json`。
+`import-wait` 默认每 5 秒查询一次服务端状态；只有用户明确要求时才通过 `--interval` 调整，避免高频轮询状态接口。
+
+只查询一次当前进度时执行：
+
+```bash
+telrobot-cli number import-status <导入任务ID> --output json
+```
+
+两个命令都会更新本地 `async.json`，并展示任务ID、文件ID、状态、阶段、总行数、已处理、跳过、成功、失败、耗时、提示和错误摘要。服务端状态默认保留 24 小时。
+
+导入存在失败记录时，使用状态结果中的文件 ID 查询完整分页明细：
+
+```bash
+telrobot-cli number import-failures <文件ID> --page 1 --per-page 50 --output json
+```
+
+服务端失败明细默认保留 72 小时。需要找回本机曾提交的任务 ID 时执行：
+
+```bash
+telrobot-cli number import-history --limit 20 --output json
+```
+
+`import-history` 展示本机最后保存的状态快照，只用于找回 ID 和继续查询，不能作为服务端当前状态或最终结果。使用过自定义 `--artifact-dir` 时，上述状态、等待和历史命令必须传相同目录。
 
 ---
 

@@ -13,6 +13,8 @@ Telrobot Skills 是一组面向 Agent 的技能包，适用于支持 `skills` CL
 
 `telrobot:task` 是任务管理入口。它应该通过 Telrobot CLI 读取 `~/.telrobot-cli/config.yaml` 中的 profile 配置执行任务命令，而不是绕过 CLI 直接请求接口。
 
+`telrobot:crm` 负责从图片、纯文本或 Excel 编排 CRM 公海客户导入。所有写入都必须通过 Telrobot CLI；Excel 内容只允许 CLI 读取和整理。
+
 这样做的好处是安装过程不会修改 shell profile、用户环境变量或系统 PATH。用户如果要在终端手动执行，可以直接使用完整路径，例如 `~/.telrobot-cli/bin/telrobot-cli`。
 
 ## 命名空间
@@ -23,6 +25,7 @@ Telrobot Skills 是一组面向 Agent 的技能包，适用于支持 `skills` CL
 telrobot:init
 telrobot:task
 telrobot:number
+telrobot:crm
 ```
 
 仓库目录保持文件系统友好的 kebab-case：
@@ -31,9 +34,10 @@ telrobot:number
 skills/telrobot-init/SKILL.md
 skills/telrobot-task/SKILL.md
 skills/telrobot-number/SKILL.md
+skills/telrobot-crm/SKILL.md
 ```
 
-部分 Agent 会根据目录名生成 slash command。例如 Claude Code 里可能显示为 `/telrobot-init`、`/telrobot-task` 和 `/telrobot-number`，但 `SKILL.md` 里的公开技能名仍然是 `telrobot:init`、`telrobot:task` 和 `telrobot:number`。
+部分 Agent 会根据目录名生成 slash command。例如 Claude Code 里可能显示为 `/telrobot-init`、`/telrobot-task`、`/telrobot-number` 和 `/telrobot-crm`，但 `SKILL.md` 里的公开技能名仍使用 `telrobot:*` 命名空间。
 
 ## 安装
 
@@ -111,8 +115,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1
 
 ```bash
 telrobot-cli config init
-telrobot-cli config set-token your-token
-telrobot-cli config profile set-token 张三 your-token
+telrobot-cli config set-token your-token --environment prod
+telrobot-cli config profile set-token 张三 your-token --environment prod
 telrobot-cli config profile use 张三
 ```
 
@@ -141,11 +145,11 @@ CLI 支持直接维护 profile：
 ```bash
 telrobot-cli config profile list
 telrobot-cli config profile use 张三
-telrobot-cli config profile set-token 张三 your-token
+telrobot-cli config profile set-token 张三 your-token --environment prod
 telrobot-cli --profile 张三 task list
 ```
 
-在 `telrobot:init` skill 内切换默认用户时，使用 `telrobot-cli config profile use <别名>`；新增用户身份使用 `telrobot-cli config profile set-token <别名> <token>`。
+在 `telrobot:init` skill 内切换默认用户时，使用 `telrobot-cli config profile use <别名>`；新增用户身份使用 `telrobot-cli config profile set-token <别名> <token> --environment prod`。
 
 ## 二进制文件
 

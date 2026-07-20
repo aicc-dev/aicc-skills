@@ -36,7 +36,6 @@ function buildNewConfig(token, profileName) {
     "",
     "server:",
     `  baseURL: ${baseUrl}`,
-    "  apiVersion: v1",
     "",
     "output:",
     "  format: table",

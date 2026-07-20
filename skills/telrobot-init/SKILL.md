@@ -1,11 +1,11 @@
 ---
 name: telrobot:init
-description: Initialize Telrobot CLI environment automatically after skill installation. Downloads platform-specific executable or builds local CLI source in DEV mode, then guides telrobot-cli config commands for token/profile setup. MUST be triggered immediately after any telrobot skill is installed.
+description: 安装任意 Telrobot Skill 后自动初始化 Telrobot CLI 环境，下载对应平台的可执行文件，或在 DEV 模式下构建本地 CLI 源码，并引导通过 telrobot-cli config 命令完成 Token 和 profile 配置。安装任意 Telrobot Skill 后必须立即触发。
 ---
 
 # Telrobot Init
 
-**此 Skill 不直接暴露给用户使用**。当用户安装 `telrobot-task` 或 `telrobot-number` 后，Agent **自动**调用此 Skill 完成环境初始化。
+**此 Skill 不直接暴露给用户使用**。当用户安装 `telrobot-task`、`telrobot-number` 或 `telrobot-crm` 后，Agent **自动**调用此 Skill 完成环境初始化。
 
 **用户不需要知道此 Skill 的存在**，也不需要手动调用 `@skill:telrobot-init`。
 
@@ -13,13 +13,13 @@ description: Initialize Telrobot CLI environment automatically after skill insta
 
 ### 场景 1：Skill 安装后立即初始化（推荐）
 
-**当用户安装此 Skill 或相关 Skill（telrobot-task/telrobot-number）后，Agent 必须立即执行环境初始化**：
+**当用户安装此 Skill 或相关 Skill（telrobot-task/telrobot-number/telrobot-crm）后，Agent 必须立即执行环境初始化**：
 
 1. **Agent 自动检测**：检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在，并检查 `~/.telrobot-cli/config.yaml` 是否存在
 2. **如果 CLI 缺失**：Agent 执行 `node scripts/setup.js`（或 Shell/PowerShell 兜底脚本）安装 CLI。setup 脚本只下载或编译 CLI，**不会写入 config.yaml**
 3. **如果配置缺失**：Agent 执行 `telrobot-cli config init`，由 CLI 创建 `config.yaml`
 4. **如果 token 为空**：Agent 输出 token 引导文本，等待用户提供 token
-5. **用户提供 token 后**：单用户执行 `telrobot-cli config set-token <token>`；指定用户身份执行 `telrobot-cli config profile set-token <别名> <token>`；需要切换当前用户时执行 `telrobot-cli config profile use <别名>`
+5. **用户提供 token 后**：单用户执行 `telrobot-cli config set-token <token> --environment prod`；指定用户身份执行 `telrobot-cli config profile set-token <别名> <token> --environment prod`；需要切换当前用户时执行 `telrobot-cli config profile use <别名>`
 6. **如果 Token 已配置且非空**：Agent 自动验证 Token 有效性
 
 **重要**：不要等待用户输入需求才初始化，**安装 Skill 后立即执行**。
@@ -42,10 +42,10 @@ telrobot-cli config init
 
 ```bash
 # 默认用户
-telrobot-cli config set-token <token>
+telrobot-cli config set-token <token> --environment prod
 
 # 新增或更新指定用户身份；profile 不存在时 CLI 会自动创建
-telrobot-cli config profile set-token <别名> <token>
+telrobot-cli config profile set-token <别名> <token> --environment prod
 
 # 切换当前用户身份
 telrobot-cli config profile use <别名>
@@ -54,7 +54,10 @@ telrobot-cli config profile use <别名>
 执行规则：
 - **禁止**通过 setup.js/setup.sh/setup.ps1 写入或修改 `config.yaml`。
 - **禁止**由 Agent 直接编辑 `config.yaml` 创建 profile 或 token；配置写入必须通过 `telrobot-cli config ...` 命令完成。
-- CLI 当前没有单独的 `profile add` 命令；新增用户身份使用 `telrobot-cli config profile set-token <别名> <token>`。
+- CLI 当前没有单独的 `profile add` 命令；新增用户身份使用 `telrobot-cli config profile set-token <别名> <token> --environment prod`。
+- `--environment prod` 会把 Token 与正式站配置一次性保存，并将旧的测试站 `baseURL` 重置为正式站地址。
+- 只有用户明确要求继续使用测试/开发站时，才使用 `--environment current` 保留当前服务地址。
+- 如果 CLI 提示 `TELROBOT_API_URL` 正在覆盖服务地址，必须停止 Token 配置和验证流程，提示用户先移除该环境变量后再重试。
 - 如果用户只给别名未给 token，Agent 必须继续输出 token 引导文本，不能创建空 token profile。
 - profile 表示不同用户身份。
 - 中文 profile 名按 UTF-8 支持，建议避免空格、`/`、`\`、`:` 等容易影响 shell 或路径解析的字符。
@@ -119,7 +122,7 @@ telrobot-cli config profile use <别名>
 
 执行规则：
 - 如果用户没有明确给出别名，先询问“要切换为哪个用户/profile？”
-- CLI 会确认 `<别名>` 已存在于 `profiles` 下；不存在时必须把错误展示给用户，并提示先用 `telrobot-cli config profile set-token <别名> <token>` 添加该 profile。
+- CLI 会确认 `<别名>` 已存在于 `profiles` 下；不存在时必须把错误展示给用户，并提示先用 `telrobot-cli config profile set-token <别名> <token> --environment prod` 添加该 profile。
 - 该操作只切换当前 profile，不修改任何 token。
 - **禁止**由 Agent 直接编辑 `config.yaml` 或使用脚本修改 `current`。
 
@@ -220,7 +223,7 @@ agent 只能使用本文档明确列出的 `telrobot-cli` 命令和参数。禁�
 
 - 严禁读取或输出 `~/.telrobot-cli/config.yaml` 的文件内容
 - 严禁读取或输出 token、Cookie、密钥或任何凭证字符串
-- Token 配置只能通过 `telrobot-cli config set-token <token>` 完成，不得手动写入配置文件
+- Token 配置只能通过 `telrobot-cli config set-token <token> --environment prod` 完成，不得手动写入配置文件
 - 初始化完成展示时，只允许展示 CLI 路径、平台信息、Token 配置状态（已配置/未配置），不得展示 token 值或 baseURL
 
 ### 6. 安全响应模板
@@ -314,7 +317,7 @@ telrobot-cli task list --page 1 --size 5
 1. 当 `~/.telrobot-cli/config.yaml` 不存在，或存在但 `token:` 值为空时，**必须**在对话中输出上述引导文本
 2. **禁止**修改引导文本的措辞，必须使用精确的原文
 3. **禁止**在引导文本前后添加额外的解释或说明（保持简洁）
-4. 用户回复 Token 后，**Agent 自动执行 CLI 配置命令**：默认用户执行 `telrobot-cli config set-token <用户提供的token>`；指定身份执行 `telrobot-cli config profile set-token <profile> <token>`。如果 `config.yaml` 不存在，先执行 `telrobot-cli config init`
+4. 用户回复 Token 后，**Agent 自动执行 CLI 配置命令**：默认用户执行 `telrobot-cli config set-token <用户提供的token> --environment prod`；指定身份执行 `telrobot-cli config profile set-token <profile> <token> --environment prod`。如果 `config.yaml` 不存在，先执行 `telrobot-cli config init`
 5. Token 配置成功后，**Agent 必须自动验证 Token 有效性**：
    - **Agent 自动执行**：`telrobot-cli task list --page 1 --size 5`（用户无需手动执行）
    - 如果成功：Agent 用自然语言总结查询结果（如"我找到了 3 个任务，分别是..."）
@@ -342,7 +345,7 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 [Agent 自动执行配置和验证，用户无需手动操作]
 telrobot-cli config init
-telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... --environment prod
 telrobot-cli task list --page 1 --size 5
 
 [Agent 用自然语言总结结果]
@@ -362,7 +365,7 @@ telrobot-cli task list --page 1 --size 5
 [验证失败场景]
 
 [Agent 自动执行，用户无需手动操作]
-telrobot-cli config set-token invalid-token...
+telrobot-cli config set-token invalid-token... --environment prod
 telrobot-cli task list --page 1 --size 5
 
 ❌ 命令执行失败：认证失败，Token 无效或已过期
@@ -379,7 +382,7 @@ telrobot-cli task list --page 1 --size 5
 [new-valid-token]
 
 [Agent 自动重新执行验证流程]
-telrobot-cli config set-token new-valid-token...
+telrobot-cli config set-token new-valid-token... --environment prod
 telrobot-cli task list --page 1 --size 5
 
 [Agent 用自然语言总结]
@@ -392,37 +395,62 @@ telrobot-cli task list --page 1 --size 5
 
 ### 流程 A：Skill 安装后立即初始化（推荐）
 
-**触发时机**：用户安装 `telrobot-init`/`telrobot-task`/`telrobot-number` Skill 后
+**触发时机**：用户安装 `telrobot-init`/`telrobot-task`/`telrobot-number`/`telrobot-crm` Skill 后；使用 `telrobot-crm` 发起任何 CRM 请求时，也必须先完成 Skill 版本检查
 
 **执行步骤**：
-1. **Agent 自动检测环境**：
+1. **Agent 先执行 Skill 版本更新检查**：
+   ```bash
+   node scripts/setup.js --skill-update-check
+   ```
+   - 对 `telrobot-crm` 请求，该命令必须先于任何 `telrobot-cli crm` 命令执行，包括 `crm add`、`crm prepare-file`、`crm import-file` 和 `crm import-status`。
+   - 该检查只比较当前已安装 skill 版本与仓库 `package.json` 版本，不安装或覆盖文件。
+   - 仅当仓库存在新版时，脚本才输出提醒；当前版本已是最新时保持静默，不产生每日提醒。
+   - 用户尚未更新时，提醒每天最多输出一次：`skill版本已更新，是否需要帮您更新？`
+   - Agent 必须把该提示原样展示给用户，并询问是否更新。
+   - 如果用户同意，Agent 执行：
+     ```bash
+     node scripts/setup.js --skill-update-apply --agent <agent-name>
+     ```
+     `<agent-name>` 使用当前 Agent 名称，例如 `workbuddy`、`claude-code`、`cursor`、`qoder`、`github-copilot` 或 `windsurf`。如果当前 Agent 名称无法确定，先询问用户。
+   - 如果用户拒绝或暂不更新，继续当前请求；当天后续请求不再重复提醒。
+   - 如果版本检查因为网络等原因失败，静默跳过，不影响 CLI 初始化和业务命令。
+2. **Agent 检查 CLI 版本更新**：
+   ```bash
+   node scripts/setup.js --cli-update-check
+   ```
+   - 脚本执行已安装 CLI 的 `version` 命令，并与 OSS `releases/manifest.json` 中的版本比较。
+   - CLI 未安装、当前版本已是最新或检查失败时保持静默。
+   - 如果脚本输出 `telrobot-saas-cli版本已更新，是否需要帮您更新？`，Agent 必须询问用户是否更新。
+   - 如果用户同意，Agent 执行 `node scripts/setup.js --cli-update-apply`；该命令下载当前平台的新版本、校验 SHA-256 后替换本地 CLI。
+   - 如果用户拒绝或暂不更新，继续当前请求；只要新版仍未安装，该提醒每天最多触发一次。
+3. **Agent 自动检测环境**：
    ```bash
    # 检查 CLI 是否存在
    test -f ~/.telrobot-cli/bin/telrobot-cli && echo "EXISTS" || echo "MISSING"
    ```
-2. **如果 CLI 缺失**：Agent 执行 setup 脚本安装 CLI
+4. **如果 CLI 缺失**：Agent 执行 setup 脚本安装 CLI
    ```bash
    node scripts/setup.js
    ```
-3. **如果配置缺失**：Agent 使用 CLI 创建配置
+5. **如果配置缺失**：Agent 使用 CLI 创建配置
    ```bash
    telrobot-cli config init
    ```
-4. **初始化完成后**：Agent 检查 Token 配置
+6. **初始化完成后**：Agent 检查 Token 配置
    ```bash
    # 检查 config.yaml 中 token 值是否非空
    grep -Eq '^[[:space:]]*token:[[:space:]]*[^[:space:]]+' ~/.telrobot-cli/config.yaml 2>/dev/null && echo "CONFIGURED" || echo "MISSING"
    ```
-5. **Token 未配置或为空**：Agent 输出引导文本
+7. **Token 未配置或为空**：Agent 输出引导文本
    ```
    请提供系统内配置 AI 助理下生成的 token 信息
    ```
-6. **用户提供 Token 后**：Agent 自动配置并验证
+8. **用户提供 Token 后**：Agent 自动配置并验证
    ```bash
-   telrobot-cli config set-token <用户提供的token>
+   telrobot-cli config set-token <用户提供的token> --environment prod
    telrobot-cli task list --page 1 --size 5  # 验证 Token
    ```
-7. **验证成功**：Agent 通知用户环境已就绪
+9. **验证成功**：Agent 通知用户环境已就绪
    ```
    ✅ Telrobot CLI 环境已就绪，可以开始使用了！
    
@@ -485,9 +513,32 @@ node scripts/setup.js --force
 **检测模式**：
 ```bash
 node scripts/setup.js --check
-node scripts/setup.js --check
 ```
 仅检查环境状态，不执行任何操作。
+
+**Skill 版本更新检查模式**：
+```bash
+node scripts/setup.js --skill-update-check
+```
+比较当前 skill 版本和仓库版本；如有更新，每天最多提醒一次，不自动更新。
+
+**Skill 更新执行模式**：
+```bash
+node scripts/setup.js --skill-update-apply --agent <agent-name>
+```
+仅在用户同意更新后执行。该命令会调用 `npx skills add aicc-dev/aicc-skills -a <agent-name> -g -y` 重新安装当前 Agent 的 Telrobot skills。
+
+**CLI 版本更新检查模式**：
+```bash
+node scripts/setup.js --cli-update-check
+```
+执行本地 `telrobot-cli version` 并与 OSS 发布 manifest 比较；仅存在新版时每天最多提醒一次。
+
+**CLI 更新执行模式**：
+```bash
+node scripts/setup.js --cli-update-apply
+```
+仅在用户同意更新后执行。该命令下载 manifest 中当前平台的版本，校验 SHA-256 后替换本地 CLI。
 
 **手动初始化（不推荐）**：
 Run one setup script from this skill directory. Do not assume Node.js is available.
@@ -537,6 +588,15 @@ The setup scripts support these environment variables:
 - `TELROBOT_DEV=1`: Node.js setup only; build `telrobot-cli` from local source instead of downloading
 - `TELROBOT_CLI_SOURCE`: Node.js setup only; local `telrobot-saas-go/telrobot-saas-cli` source path for DEV mode
 - `TELROBOT_SETUP_DRY_RUN=1`: print the resolved asset, URL, and destination without downloading
+- `TELROBOT_SKILL_UPDATE_REPO`: override the skills repository used by `--skill-update-apply` (default: `aicc-dev/aicc-skills`)
+- `TELROBOT_SKILL_UPDATE_PACKAGE_URL`: override the package metadata source used by `--skill-update-check`
+- `TELROBOT_SKILL_UPDATE_STATE`: override the local daily reminder state file (default: `~/.telrobot-cli/skill-update-state.json`)
+- `TELROBOT_SKILL_UPDATE_DISABLED=1`: disable skill update checks
+- `TELROBOT_SKILL_UPDATE_AGENT`: default agent name for `--skill-update-apply`
+- `TELROBOT_CLI_UPDATE_MANIFEST_URL`: override the CLI release manifest used by CLI update checks
+- `TELROBOT_CLI_UPDATE_STATE`: override the CLI daily reminder state file (defaults to the skill update state file)
+- `TELROBOT_CLI_UPDATE_DISABLED=1`: disable CLI update checks
+- `TELROBOT_CLI_UPDATE_VERBOSE=1`: print CLI update check failures instead of silently skipping them
 
 `TELROBOT_TOKEN`、`TELROBOT_PROFILE`、`TELROBOT_CONFIG_PATH`、`TELROBOT_API_URL` 等配置变量属于 `telrobot-cli config` 或 CLI 运行期，不由 setup 脚本消费或写入。
 
@@ -551,14 +611,14 @@ For API token configuration, you can:
 
 1. **Agent 引导用户提供**（推荐）：
    - 初始化前发现缺少当前 profile 的 token 时，Agent 自动在对话中输出：`请提供系统内配置 AI 助理下生成的 token 信息`
-   - 用户提供 Token 后，Agent 执行：`telrobot-cli config set-token <token>`，或 `telrobot-cli config profile set-token <profile> <token>`
+   - 用户提供 Token 后，Agent 执行：`telrobot-cli config set-token <token> --environment prod`，或 `telrobot-cli config profile set-token <profile> <token> --environment prod`
 
 2. Use CLI config commands:
 ```bash
 telrobot-cli config init
-telrobot-cli config set-token your-token
-telrobot-cli config profile set-token 张三 token-a
-telrobot-cli config profile set-token 李四 token-b
+telrobot-cli config set-token your-token --environment prod
+telrobot-cli config profile set-token 张三 token-a --environment prod
+telrobot-cli config profile set-token 李四 token-b --environment prod
 telrobot-cli config profile use 张三
 ```
 
@@ -570,8 +630,8 @@ On Windows (PowerShell):
 
 3. Use the token config command:
 ```bash
-telrobot-cli config set-token your-token
-telrobot-cli config profile set-token 张三 your-token
+telrobot-cli config set-token your-token --environment prod
+telrobot-cli config profile set-token 张三 your-token --environment prod
 telrobot-cli config profile use 张三
 telrobot-cli config profile list
 telrobot-cli config profile remove 张三
@@ -614,7 +674,7 @@ telrobot-cli config init
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     ↓
 [Agent 自动配置并验证]
-telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+telrobot-cli config set-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... --environment prod
 telrobot-cli task list --page 1 --size 5
     ↓
 [验证成功]
@@ -646,7 +706,7 @@ telrobot-cli config init
 [用户输入：张三 + Token]
     ↓
 [Agent 自动配置当前 profile]
-telrobot-cli config profile set-token 张三 eyJhbGci...
+telrobot-cli config profile set-token 张三 eyJhbGci... --environment prod
 telrobot-cli config profile use 张三
     ↓
 [Agent 自动验证当前 profile 的 Token]

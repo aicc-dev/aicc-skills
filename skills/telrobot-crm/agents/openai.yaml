@@ -1,0 +1,4 @@
+interface:
+  display_name: "Telrobot CRM"
+  short_description: "通过 Telrobot CLI 安全导入 CRM 公海客户"
+  default_prompt: "Use $telrobot-crm to import CRM customers through telrobot-cli."

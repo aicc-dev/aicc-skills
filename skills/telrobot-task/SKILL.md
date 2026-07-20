@@ -1,11 +1,11 @@
 ---
 name: telrobot:task
-description: Use this skill for Telrobot CLI task management operations including listing tasks with tags, creating inbound/outbound tasks with task add, starting/stopping tasks, viewing call statistics summaries, and querying customers by intention. Automatically initializes CLI environment on first use.
+description: 用于通过 Telrobot CLI 管理任务，包括带标签查询任务、使用 task add 创建呼入或呼出任务、启动和停止任务、查看通话统计汇总，以及按意向查询客户。首次使用时自动初始化 CLI 环境。
 ---
 
 # Telrobot Task
 
-This skill provides task management for Telrobot CLI. Configuration is read from `~/.telrobot-cli/config.yaml`.
+此 Skill 为 Telrobot CLI 提供任务管理能力，配置读取自 `~/.telrobot-cli/config.yaml`。
 
 ## Profile 选择
 
@@ -65,14 +65,39 @@ Agent 自动检测：~/.telrobot-cli/bin/telrobot-cli 是否存在
 
 ## ⚠️ 前置环境检查（MUST CHECK）
 
-**每次使用此 Skill 前，Agent 必须自动检查 CLI 环境和终端编码状态**：
+**每次使用此 Skill 前，Agent 必须自动检查 skill 版本、CLI 版本、CLI 环境和终端编码状态**：
 
-**第一步：检查 CLI 环境**（下列 3 项允许并行）：
+**第一步：检查 Skill 版本更新**：
+
+```bash
+node scripts/setup.js --skill-update-check
+```
+
+执行规则：
+- 仅当仓库存在新版时才提醒；当前版本已是最新时保持静默，不产生每日提醒。
+- 如果脚本输出 `skill版本已更新，是否需要帮您更新？`，Agent 必须询问用户是否更新。
+- 如果用户同意，执行 `node scripts/setup.js --skill-update-apply --agent <agent-name>`，然后继续用户原始请求。
+- 如果用户拒绝或暂不更新，继续用户原始请求；只要新版仍未安装，该提醒每天最多触发一次。
+- 如果检查失败或 Node.js 不可用，静默跳过，不影响业务命令。
+
+**第二步：检查 CLI 版本更新**：
+
+```bash
+node scripts/setup.js --cli-update-check
+```
+
+执行规则：
+- CLI 未安装、当前版本已是最新或检查失败时保持静默。
+- 如果脚本输出 `telrobot-saas-cli版本已更新，是否需要帮您更新？`，Agent 必须询问用户是否更新。
+- 如果用户同意，执行 `node scripts/setup.js --cli-update-apply`，然后继续用户原始请求。
+- 如果用户拒绝或暂不更新，继续用户原始请求；只要新版仍未安装，该提醒每天最多触发一次。
+
+**第三步：检查 CLI 环境**（下列 3 项允许并行）：
 1. 检查 `~/.telrobot-cli/bin/telrobot-cli` 是否存在
 2. 检查 `~/.telrobot-cli/config.yaml` 是否存在
 3. 检查配置中 Token 是否已配置
 
-**第二步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
+**第四步：同时检查终端编码**（合并到初始化阶段，不额外增加步骤）：
 
 ```bash
 echo "LANG=${LANG:-unset} LC_ALL=${LC_ALL:-unset}"
@@ -203,7 +228,7 @@ agent 只能使用本文档明确列出的 `telrobot-cli` 命令和参数。禁�
 
 - 严禁读取或输出 `~/.telrobot-cli/config.yaml` 的文件内容
 - 严禁读取或输出 token、Cookie、密钥或任何凭证字符串
-- Token 配置只能通过 `telrobot-cli config set-token <token>` 完成，不得手动写入配置文件
+- Token 配置只能通过 `telrobot-cli config set-token <token> --environment prod` 完成，不得手动写入配置文件
 - 初始化完成展示时，只允许展示 CLI 路径、平台信息、Token 配置状态（已配置/未配置），不得展示 token 值或 baseURL
 
 ### 6. 安全响应模板
